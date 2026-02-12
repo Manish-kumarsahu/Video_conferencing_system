@@ -5,22 +5,29 @@
     font-family: 'Segoe UI', sans-serif;
 }
 
-/* ===== LANDING PAGE ===== */
+/* ===== INDEX PAGE ===== */
 .landing-page {
     height: 100vh;
+    background-color: rgb(236, 241, 242);
 }
-
 header {
     position: fixed;
     width: 100%;
     padding: 20px 40px;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     background: rgba(0,0,0,0.7);
     color: white;
+    z-index: 1000;
 }
 
-header nav a {
+.nav-links {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links a {
     color: white;
     text-decoration: none;
     font-weight: bold;
@@ -28,7 +35,7 @@ header nav a {
 
 .hero {
     height: 100vh;
-    background: url("https://images.unsplash.com/photo-1529333166437-7750a6dd5a70") no-repeat center center/cover;
+    /* background: url("https://images.unsplash.com/photo-1529333166437-7750a6dd5a70") no-repeat center center/cover; */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -57,9 +64,42 @@ header nav a {
     margin-top: 20px;
     padding: 15px 30px;
     border: none;
-    background: #ff6600;
+    background: #4a4fbd;
     color: white;
     border-radius: 30px;
+    cursor: pointer;
+}
+/* ===== AUTH PAGE ===== */
+
+.auth-page {
+    height: 100vh;
+    background: linear-gradient(135deg, #1cb5e0, #000851);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.auth-container {
+    background: white;
+    padding: 40px;
+    width: 350px;
+    border-radius: 20px;
+    text-align: center;
+}
+
+.auth-container input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+}
+
+.auth-container button {
+    width: 100%;
+    padding: 12px;
+    background: #667cc1;
+    color: white;
+    border: none;
+    border-radius: 10px;
     cursor: pointer;
 }
 
@@ -95,7 +135,7 @@ header nav a {
     border-radius: 10px;
 }
 
-/* ===== MEETING PAGE ===== */
+/* --- MEETING PAGE --- */
 .meeting-page {
     height: 100vh;
     background: linear-gradient(135deg, #141e30, #243b55);
@@ -132,4 +172,16 @@ video {
     border-radius: 20px;
     border: none;
     cursor: pointer;
+}
+#end-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+}
+
+#end-btn:hover {
+    background-color: #c0392b;
 }
