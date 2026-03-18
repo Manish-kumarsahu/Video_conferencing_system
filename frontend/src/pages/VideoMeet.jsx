@@ -40,6 +40,7 @@ export default function VideoMeetComponent() {
         sendMessage,
         resetNewMessages,
         connectToSocket,
+        disconnectSocket,
         renegotiateAll,
     } = useWebRTC(createBlackSilence);
 
@@ -67,8 +68,9 @@ export default function VideoMeetComponent() {
     // --- End call ---
     const handleEndCall = useCallback(() => {
         stopAllTracks();
+        disconnectSocket();
         navigate("/");
-    }, [stopAllTracks, navigate]);
+    }, [stopAllTracks, disconnectSocket, navigate]);
 
     // --- Chat handlers ---
     const handleSendMessage = useCallback((messageText) => {

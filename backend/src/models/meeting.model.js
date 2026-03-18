@@ -9,6 +9,9 @@ const meetingSchema = new Schema(
     }
 )
 
+// Compound index to speed up history queries (sorted by newest first per user)
+meetingSchema.index({ user_id: 1, date: -1 });
+
 const Meeting = mongoose.model("Meeting", meetingSchema);
 
 export { Meeting };

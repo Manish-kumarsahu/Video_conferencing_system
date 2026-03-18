@@ -27,7 +27,9 @@ app.use(express.urlencoded({ limit: "40kb", extended: true }));
 app.use("/api/v1/users", userRoutes);
 
 const start = async () => {
-    const connectionDb = await mongoose.connect(process.env.MONGODB_URI)
+    const connectionDb = await mongoose.connect(process.env.MONGODB_URI, {
+        maxPoolSize: 10
+    })
 
     console.log(`MONGO Connected DB HOst: ${connectionDb.connection.host}`)
     server.listen(app.get("port"), () => {

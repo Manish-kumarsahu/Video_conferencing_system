@@ -77,7 +77,11 @@ export default function useWebRTC(createBlackSilence) {
 
     // --- Chat ---
     const addMessage = useCallback((data, sender, socketIdSender) => {
-        setMessages((prev) => [...prev, { sender, data }]);
+        setMessages((prev) => {
+            const updated = [...prev, { sender, data }];
+            // Keep only the last 200 messages to prevent unbounded memory growth
+            return updated.length > 200 ? updated.slice(-200) : updated;
+        });
         if (socketIdSender !== socketIdRef.current) {
             setNewMessages((prev) => prev + 1);
         }
@@ -88,6 +92,18 @@ export default function useWebRTC(createBlackSilence) {
     }, []);
 
     const resetNewMessages = useCallback(() => setNewMessages(0), []);
+
+    // --- Disconnect from socket and close all peer connections ---
+    const disconnectSocket = useCallback(() => {
+        for (let id in connectionsRef.current) {
+            connectionsRef.current[id].close();
+        }
+        connectionsRef.current = {};
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
+    }, []);
 
     // --- Connect to socket server ---
     const connectToSocket = useCallback(() => {
@@ -186,6 +202,7 @@ export default function useWebRTC(createBlackSilence) {
         sendMessage,
         resetNewMessages,
         connectToSocket,
+        disconnectSocket,
         renegotiateAll,
         socketIdRef,
     };

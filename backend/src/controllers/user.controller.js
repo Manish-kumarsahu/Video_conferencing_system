@@ -32,7 +32,7 @@ const login = async (req, res) => {
         }
 
     } catch (e) {
-        return res.status(500).json({ message: `Something went wrong ${e}` })
+        return res.status(500).json({ message: "Something went wrong" })
     }
 }
 
@@ -60,7 +60,8 @@ const register = async (req, res) => {
         res.status(httpStatus.CREATED).json({ message: "User Registered" })
 
     } catch (e) {
-        res.json({ message: `Something went wrong ${e}` })
+        console.error("register error:", e);
+        res.status(500).json({ message: "Something went wrong" })
     }
 
 }
@@ -68,10 +69,18 @@ const register = async (req, res) => {
 
 const getUserHistory = async (req, res) => {
     try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+        const skip = (page - 1) * limit;
+
         const meetings = await Meeting.find({ user_id: req.user._id })
+            .sort({ date: -1 })
+            .skip(skip)
+            .limit(limit)
         res.json(meetings)
     } catch (e) {
-        res.json({ message: `Something went wrong ${e}` })
+        console.error("getUserHistory error:", e);
+        res.status(500).json({ message: "Something went wrong" })
     }
 }
 
@@ -88,7 +97,8 @@ const addToHistory = async (req, res) => {
 
         res.status(httpStatus.CREATED).json({ message: "Added code to history" })
     } catch (e) {
-        res.json({ message: `Something went wrong ${e}` })
+        console.error("addToHistory error:", e);
+        res.status(500).json({ message: "Something went wrong" })
     }
 }
 

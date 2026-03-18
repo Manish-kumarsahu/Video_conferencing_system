@@ -4,6 +4,8 @@ import { Server } from "socket.io"
 let connections = {}
 let messages = {}
 let timeOnline = {}
+// Reverse map: socketId → roomPath for O(1) lookup instead of iterating all rooms
+let socketToRoom = {}
 
 export const connectToSocket = (server) => {
     const io = new Server(server, {
@@ -25,6 +27,9 @@ export const connectToSocket = (server) => {
                 connections[path] = []
             }
             connections[path].push(socket.id)
+
+            // Track which room this socket belongs to for O(1) lookups
+            socketToRoom[socket.id] = path;
 
             timeOnline[socket.id] = new Date();
 
@@ -51,19 +56,10 @@ export const connectToSocket = (server) => {
 
         socket.on("chat-message", (data, sender) => {
 
-            const [matchingRoom, found] = Object.entries(connections)
-                .reduce(([room, isFound], [roomKey, roomValue]) => {
+            // O(1) lookup using the reverse map instead of iterating all rooms
+            const matchingRoom = socketToRoom[socket.id];
 
-
-                    if (!isFound && roomValue.includes(socket.id)) {
-                        return [roomKey, true];
-                    }
-
-                    return [room, isFound];
-
-                }, ['', false]);
-
-            if (found === true) {
+            if (matchingRoom !== undefined) {
                 if (messages[matchingRoom] === undefined) {
                     messages[matchingRoom] = []
                 }
@@ -83,32 +79,23 @@ export const connectToSocket = (server) => {
             var diffTime = Math.abs(timeOnline[socket.id] - new Date())
             delete timeOnline[socket.id]
 
-            var key
+            // O(1) lookup using the reverse map; no need to clone or iterate all rooms
+            const key = socketToRoom[socket.id]
+            delete socketToRoom[socket.id]
 
-            for (const [k, v] of JSON.parse(JSON.stringify(Object.entries(connections)))) {
+            if (key !== undefined && connections[key] !== undefined) {
+                connections[key].forEach((peerId) => {
+                    io.to(peerId).emit('user-left', socket.id)
+                })
 
-                for (let a = 0; a < v.length; ++a) {
-                    if (v[a] === socket.id) {
-                        key = k
+                var index = connections[key].indexOf(socket.id)
+                connections[key].splice(index, 1)
 
-                        for (let a = 0; a < connections[key].length; ++a) {
-                            io.to(connections[key][a]).emit('user-left', socket.id)
-                        }
-
-                        var index = connections[key].indexOf(socket.id)
-
-                        connections[key].splice(index, 1)
-
-
-                        if (connections[key].length === 0) {
-                            delete connections[key]
-                            delete messages[key]
-                        }
-                    }
+                if (connections[key].length === 0) {
+                    delete connections[key]
+                    delete messages[key]
                 }
-
             }
-
 
         })
 
