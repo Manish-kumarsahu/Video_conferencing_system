@@ -16,61 +16,45 @@ export default function VideoMeetComponent() {
     const [askForUsername, setAskForUsername] = useState(true);
     const [username, setUsername] = useState("");
 
-    // --- Custom hooks ---
     const {
         localVideoRef,
-        video,
-        audio,
-        screen,
-        screenAvailable,
-        startMedia,
-        getUserMedia,
-        getDisplayMedia,
-        stopAllTracks,
-        toggleVideo,
-        toggleAudio,
-        toggleScreen,
-        createBlackSilence,
+        video, audio, screen, screenAvailable,
+        startMedia, getUserMedia, getDisplayMedia,
+        stopAllTracks, toggleVideo, toggleAudio,
+        toggleScreen, createBlackSilence,
     } = useMediaStream();
 
     const {
-        videos,
-        messages,
-        newMessages,
-        sendMessage,
-        resetNewMessages,
-        connectToSocket,
-        renegotiateAll,
+        videos, messages, newMessages,
+        sendMessage, resetNewMessages,
+        connectToSocket, renegotiateAll,
     } = useWebRTC(createBlackSilence);
 
-    // --- Re-negotiate when video/audio toggles change ---
     useEffect(() => {
         if (video !== undefined && audio !== undefined) {
             getUserMedia((stream) => renegotiateAll(stream));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [video, audio]);
 
-    // --- Re-negotiate when screen share toggles ---
     useEffect(() => {
         if (screen !== undefined) {
             getDisplayMedia((stream) => renegotiateAll(stream));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [screen]);
 
-    // --- Lobby → Meeting transition ---
     const connect = useCallback(() => {
         setAskForUsername(false);
         startMedia();
         connectToSocket();
     }, [startMedia, connectToSocket]);
 
-    // --- End call ---
     const handleEndCall = useCallback(() => {
         stopAllTracks();
         navigate("/");
     }, [stopAllTracks, navigate]);
 
-    // --- Chat handlers ---
     const handleSendMessage = useCallback((messageText) => {
         sendMessage(messageText, username);
     }, [sendMessage, username]);
@@ -82,28 +66,45 @@ export default function VideoMeetComponent() {
         });
     }, [resetNewMessages]);
 
-    // ===================== RENDER =====================
-
+    // ── LOBBY ──
     if (askForUsername) {
         return (
-            <div>
-                <h2>Enter into Lobby</h2>
-                <TextField
-                    id="lobby-username"
-                    label="Username"
-                    value={username}
-                    onChange={e => setUsername(e.target.value)}
-                    variant="outlined"
-                />
-                <Button variant="contained" onClick={connect}>Connect</Button>
+            <div className={styles.lobbyScreen}>
+                <h2>Enter the Lobby</h2>
+                <p style={{ color: "#9ca3af", fontSize: "0.95rem" }}>
+                    Your camera preview — choose a name before joining.
+                </p>
 
-                <div>
-                    <video ref={localVideoRef} autoPlay muted></video>
+                <div className={styles.lobbyPreview}>
+                    <video ref={localVideoRef} autoPlay muted />
+                </div>
+
+                <div className={styles.lobbyForm}>
+                    <TextField
+                        id="lobby-username"
+                        label="Your display name"
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && username.trim() && connect()}
+                        variant="outlined"
+                        size="medium"
+                        sx={{ minWidth: 220 }}
+                    />
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={connect}
+                        disabled={!username.trim()}
+                        sx={{ height: 56, px: 3 }}
+                    >
+                        Join Meeting
+                    </Button>
                 </div>
             </div>
         );
     }
 
+    // ── MEETING ROOM ──
     return (
         <div className={styles.meetVideoContainer}>
 
@@ -135,7 +136,6 @@ export default function VideoMeetComponent() {
             />
 
             <VideoGrid videos={videos} />
-
         </div>
     );
 }

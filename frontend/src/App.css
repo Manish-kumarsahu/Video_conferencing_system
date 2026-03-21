@@ -1,97 +1,269 @@
+/* =============================================
+   LANDING PAGE
+   ============================================= */
+
 .landingPageContainer {
+  position: relative;
   width: 100vw;
-  height: 100vh;
-  background: url("/public/background.png");
-  background-repeat: no-repeat;
-  background-size: cover;
-  color: white;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 70% 60% at 15% 20%, rgba(124, 92, 252, 0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 45% at 85% 75%, rgba(0, 212, 255, 0.15) 0%, transparent 65%),
+    #06061a;
+  color: #f0f0ff;
+  overflow: hidden;
 }
 
+/* Animated star-like orbs */
+.landingPageContainer::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 92, 252, 0.18) 0%, transparent 70%);
+  animation: pulse-orb 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.landingPageContainer::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -80px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.12) 0%, transparent 70%);
+  animation: pulse-orb 8s ease-in-out infinite reverse;
+  pointer-events: none;
+}
+
+@keyframes pulse-orb {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+/* NAV */
 .landingPageContainer nav {
-  padding-inline: 1.2rem;
-  padding-block: 1.6rem;
+  position: relative;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
-
+  padding: 1.4rem 3rem;
+  border-bottom: 1px solid rgba(124, 92, 252, 0.12);
+  backdrop-filter: blur(10px);
 }
 
 .landingPageContainer nav h2 {
-  font-size: 1.8rem;
-  font-weight: 500;
+  font-size: 1.7rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #a78bfa, #00d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
 }
 
 .landingPageContainer nav .navlist {
   display: flex;
-  gap: 1.6rem;
-  cursor: pointer;
-
-}
-
-.landingMainContainer {
-  display: flex;
-  justify-content: space-between;
-  padding-inline: 3rem;
-  height: 80vh;
+  gap: 0.4rem;
   align-items: center;
 }
 
-.landingMainContainer>div:nth-child(1) {
-  font-size: 2.2rem;
+.landingPageContainer nav .navlist p {
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #c4b5fd;
+  transition: all 0.2s ease;
 }
 
-.landingMainContainer>div:nth-child(1) div[role='button'] {
-  background: #D97500;
-  width: fit-content;
-  padding: 1rem;
-  border-radius: 20px;
-  margin-top: 1.9rem;
+.landingPageContainer nav .navlist p:hover {
+  background: rgba(124, 92, 252, 0.12);
+  color: #f0f0ff;
 }
 
-.landingMainContainer>div:nth-child(1) div[role='button'] a {
+.navLoginBtn {
+  padding: 0.55rem 1.4rem !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #7c5cfc, #5b3fd4) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124, 92, 252, 0.35);
+  transition: all 0.2s ease;
+}
+
+.navLoginBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(124, 92, 252, 0.5);
+}
+
+/* HERO */
+.landingMainContainer {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4rem 3rem;
+  min-height: calc(100vh - 80px);
+  gap: 2rem;
+}
+
+.landingMainContainer > div:nth-child(1) {
+  max-width: 560px;
+  animation: slide-up 0.7s ease both;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.landingMainContainer > div:nth-child(1) h1 {
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin-bottom: 1rem;
+  color: #f0f0ff;
+}
+
+.landingMainContainer > div:nth-child(1) h1 span {
+  background: linear-gradient(135deg, #a78bfa 0%, #00d4ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landingMainContainer > div:nth-child(1) p {
+  font-size: 1.1rem;
+  color: #9ca3af;
+  margin-bottom: 2.2rem;
+  line-height: 1.6;
+}
+
+/* CTA button */
+.landingMainContainer > div:nth-child(1) div[role="button"] {
+  display: inline-flex;
+}
+
+.landingMainContainer > div:nth-child(1) div[role="button"] a {
   text-decoration: none;
-  color: white;
-  font-size: 1.7rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.9rem 2.2rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7c5cfc 0%, #00d4ff 100%);
+  box-shadow: 0 6px 28px rgba(124, 92, 252, 0.45);
+  transition: all 0.25s ease;
+  letter-spacing: 0.01em;
 }
 
-.landingMainContainer>div:nth-child(2) img {
-  height: 70vh;
-  width: auto;
+.landingMainContainer > div:nth-child(1) div[role="button"] a:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 36px rgba(124, 92, 252, 0.6);
 }
+
+/* Hero image */
+.landingMainContainer > div:nth-child(2) {
+  animation: slide-up 0.9s ease 0.15s both;
+  flex-shrink: 0;
+}
+
+.landingMainContainer > div:nth-child(2) img {
+  height: clamp(280px, 55vh, 520px);
+  width: auto;
+  border-radius: 24px;
+  filter: drop-shadow(0 20px 60px rgba(124, 92, 252, 0.35));
+}
+
+/* =============================================
+   HOME PAGE — NavBar
+   ============================================= */
 
 .navBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-inline: 20px;
-  text-align: center;
-
+  padding: 1rem 2rem;
+  background: rgba(13, 13, 43, 0.8);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(124, 92, 252, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
+
+.navBar h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #a78bfa, #00d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+/* =============================================
+   HOME PAGE — Meet Container
+   ============================================= */
 
 .meetContainer {
   display: flex;
-  padding-inline: 20px;
-  height: 80vh;
-  gap: 10vw;
+  align-items: center;
   justify-content: center;
+  gap: 6vw;
+  padding: 5rem 3rem;
+  min-height: calc(100vh - 72px);
+  position: relative;
 }
 
-
-
 .leftPanel {
-  height: 100%;
   display: flex;
   align-items: center;
+  max-width: 480px;
+  animation: slide-up 0.6s ease both;
+}
 
+.leftPanel h2 {
+  font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+  color: #f0f0ff;
 }
 
 .rightPanel {
   display: flex;
   align-items: center;
+  animation: slide-up 0.8s ease 0.1s both;
+  flex-shrink: 0;
 }
 
-.rightPanel>img {
-  width: 30vw;
+.rightPanel > img {
+  width: clamp(200px, 28vw, 380px);
   height: auto;
-  border-radius: 20px;
+  border-radius: 24px;
+  filter: drop-shadow(0 20px 50px rgba(124, 92, 252, 0.3));
+}
+
+/* =============================================
+   Shared — Join input group
+   ============================================= */
+.joinGroup {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
