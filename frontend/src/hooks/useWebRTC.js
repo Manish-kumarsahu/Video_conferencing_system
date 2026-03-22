@@ -21,6 +21,7 @@ export default function useWebRTC(createBlackSilence) {
     const [videos, setVideos] = useState([]);
     const [messages, setMessages] = useState([]);
     const [newMessages, setNewMessages] = useState(0);
+    const [participants, setParticipants] = useState([]); // Array of { id, name, role }
 
     // ── Cleanup socket on unmount ──────────────────────
     useEffect(() => {
@@ -29,7 +30,6 @@ export default function useWebRTC(createBlackSilence) {
                 socketRef.current.disconnect();
                 socketRef.current = null;
             }
-            // Close all peer connections
             for (const id in connectionsRef.current) {
                 try {
                     connectionsRef.current[id].close();
@@ -122,34 +122,51 @@ export default function useWebRTC(createBlackSilence) {
 
     const resetNewMessages = useCallback(() => setNewMessages(0), []);
 
+    // ── Kick Functionality ────────────────────────────
+    const kickUser = useCallback((targetId) => {
+        const roomId = window.location.pathname;
+        socketRef.current?.emit('kick-user', roomId, targetId);
+    }, []);
+
     // ── Connect to socket server ───────────────────────
-    const connectToSocket = useCallback(() => {
-        // Prevent duplicate connections
+    const connectToSocket = useCallback((username) => {
         if (socketRef.current?.connected) return;
 
         const connections = connectionsRef.current;
-
-        // Let Socket.IO auto-detect protocol (http/https)
         socketRef.current = io(server);
 
         socketRef.current.on('signal', gotMessageFromServer);
 
         socketRef.current.on('connect', () => {
             const roomId = window.location.pathname;
-            socketRef.current.emit('join-room', roomId);
+            socketRef.current.emit('join-room', roomId, username);
             socketIdRef.current = socketRef.current.id;
 
             socketRef.current.on('receive-message', addMessage);
 
+            socketRef.current.on('kicked', () => {
+                alert("You have been removed from the meeting by the host.");
+                window.location.href = "/";
+            });
+
             socketRef.current.on('user-left', (id) => {
                 setVideos(prev => prev.filter(v => v.socketId !== id));
+                setParticipants(prev => prev.filter(p => p.socketId !== id));
+            });
+
+            socketRef.current.on('update-users', (clients) => {
+                setParticipants(clients);
             });
 
             socketRef.current.on('user-joined', (id, clients) => {
-                clients.forEach((socketListId) => {
+                setParticipants(clients);
+
+                clients.forEach((client) => {
+                    const socketListId = client.socketId;
+                    if (socketListId === socketIdRef.current || connections[socketListId]) return;
+
                     connections[socketListId] = new RTCPeerConnection(peerConfigConnections);
 
-                    // ICE candidate handler
                     connections[socketListId].onicecandidate = (event) => {
                         if (event.candidate) {
                             socketRef.current?.emit(
@@ -159,7 +176,6 @@ export default function useWebRTC(createBlackSilence) {
                         }
                     };
 
-                    // Remote track handler
                     connections[socketListId].ontrack = (event) => {
                         const remoteStream = event.streams[0];
                         if (!remoteStream) return;
@@ -181,7 +197,6 @@ export default function useWebRTC(createBlackSilence) {
                         });
                     };
 
-                    // Add local stream to new peer
                     const localStream = window.localStream;
                     if (localStream) {
                         localStream.getTracks().forEach(track => connections[socketListId].addTrack(track, localStream));
@@ -191,25 +206,26 @@ export default function useWebRTC(createBlackSilence) {
                     }
                 });
 
-                // If we are the new joiner, create offers to all existing peers
                 if (id === socketIdRef.current) {
-                    for (const id2 in connections) {
-                        if (id2 === socketIdRef.current) continue;
+                    clients.forEach(client => {
+                        const targetId = client.socketId;
+                        if (targetId === socketIdRef.current) return;
+                        
                         try {
-                            window.localStream.getTracks().forEach(track => connections[id2].addTrack(track, window.localStream));
+                            window.localStream.getTracks().forEach(track => connections[targetId].addTrack(track, window.localStream));
                         } catch (_) { /* ignore */ }
 
-                        connections[id2]
+                        connections[targetId]
                             .createOffer()
-                            .then((description) => connections[id2].setLocalDescription(description))
+                            .then((description) => connections[targetId].setLocalDescription(description))
                             .then(() => {
                                 socketRef.current?.emit(
-                                    'signal', id2,
-                                    JSON.stringify({ sdp: connections[id2].localDescription })
+                                    'signal', targetId,
+                                    JSON.stringify({ sdp: connections[targetId].localDescription })
                                 );
                             })
                             .catch(e => console.warn('[createOffer]', e));
-                    }
+                    });
                 }
             });
         });
@@ -217,15 +233,18 @@ export default function useWebRTC(createBlackSilence) {
         socketRef.current.on('connect_error', (err) => {
             console.warn('[socket connect_error]', err.message);
         });
-    }, [gotMessageFromServer, addMessage, addOrReplaceStream, createBlackSilence]);
+    }, [gotMessageFromServer, addMessage, createBlackSilence]);
 
     return {
         videos,
         messages,
         newMessages,
+        participants,
+        socketId: socketIdRef.current,
         sendMessage,
         resetNewMessages,
         connectToSocket,
         renegotiateAll,
+        kickUser
     };
 }

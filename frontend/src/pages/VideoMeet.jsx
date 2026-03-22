@@ -8,11 +8,13 @@ import useWebRTC from '../hooks/useWebRTC';
 import VideoGrid from '../components/VideoGrid';
 import ChatPanel from '../components/ChatPanel';
 import MeetingControls from '../components/MeetingControls';
+import MicIcon from '@mui/icons-material/Mic';
+import MicOffIcon from '@mui/icons-material/MicOff';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 export default function VideoMeetComponent() {
     const navigate = useNavigate();
 
-    const [showChat, setShowChat] = useState(true);
     const [askForUsername, setAskForUsername] = useState(true);
     const [username, setUsername] = useState("");
 
@@ -26,8 +28,10 @@ export default function VideoMeetComponent() {
 
     const {
         videos, messages, newMessages,
+        participants, socketId,
         sendMessage, resetNewMessages,
         connectToSocket, renegotiateAll,
+        kickUser
     } = useWebRTC(createBlackSilence);
 
     useEffect(() => {
@@ -47,8 +51,8 @@ export default function VideoMeetComponent() {
     const connect = useCallback(() => {
         setAskForUsername(false);
         startMedia();
-        connectToSocket();
-    }, [startMedia, connectToSocket]);
+        connectToSocket(username);
+    }, [startMedia, connectToSocket, username]);
 
     const handleEndCall = useCallback(() => {
         stopAllTracks();
@@ -59,12 +63,21 @@ export default function VideoMeetComponent() {
         sendMessage(messageText, username);
     }, [sendMessage, username]);
 
+
+
+    // ── MEETING ROOM ──
+    const [activeTab, setActiveTab] = useState(null); // 'chat' | 'people' | null
+
     const handleToggleChat = useCallback(() => {
-        setShowChat(prev => {
-            if (!prev) resetNewMessages();
-            return !prev;
+        setActiveTab(prev => {
+            if (prev !== 'chat') resetNewMessages();
+            return prev === 'chat' ? null : 'chat';
         });
     }, [resetNewMessages]);
+
+    const handleTogglePeople = useCallback(() => {
+        setActiveTab(prev => (prev === 'people' ? null : 'people'));
+    }, []);
 
     // ── LOBBY ──
     if (askForUsername) {
@@ -104,38 +117,96 @@ export default function VideoMeetComponent() {
         );
     }
 
-    // ── MEETING ROOM ──
     return (
-        <div className={styles.meetVideoContainer}>
-
-            {showChat && (
-                <ChatPanel
-                    messages={messages}
-                    onSendMessage={handleSendMessage}
+        <div className={styles.meetLayout}>
+            <div className={`${styles.mainVideoArea} ${activeTab ? styles.withSidebar : ''}`}>
+                <div className={styles.videoGridWrapper}>
+                    <VideoGrid 
+                        videos={videos} 
+                        localVideoRef={localVideoRef} 
+                        localAudio={audio} 
+                        localVideo={video} 
+                        localUsername={username} 
+                        participants={participants}
+                        socketId={socketId}
+                    />
+                </div>
+                
+                <MeetingControls
+                    video={video}
+                    audio={audio}
+                    screen={screen}
+                    screenAvailable={screenAvailable}
+                    newMessages={newMessages}
+                    onToggleVideo={toggleVideo}
+                    onToggleAudio={toggleAudio}
+                    onToggleScreen={toggleScreen}
+                    onToggleChat={handleToggleChat}
+                    onTogglePeople={handleTogglePeople}
+                    onEndCall={handleEndCall}
+                    activeTab={activeTab}
                 />
+            </div>
+
+            {activeTab === 'chat' && (
+                <div className={styles.sidebarPanel}>
+                    <ChatPanel
+                        messages={messages}
+                        onSendMessage={handleSendMessage}
+                        onClose={() => setActiveTab(null)}
+                    />
+                </div>
             )}
 
-            <MeetingControls
-                video={video}
-                audio={audio}
-                screen={screen}
-                screenAvailable={screenAvailable}
-                newMessages={newMessages}
-                onToggleVideo={toggleVideo}
-                onToggleAudio={toggleAudio}
-                onToggleScreen={toggleScreen}
-                onToggleChat={handleToggleChat}
-                onEndCall={handleEndCall}
-            />
-
-            <video
-                className={styles.meetUserVideo}
-                ref={localVideoRef}
-                autoPlay
-                muted
-            />
-
-            <VideoGrid videos={videos} />
+            {activeTab === 'people' && (
+                <div className={styles.sidebarPanel}>
+                    {/* Simplified Participants Panel inline since we can't create complex new files unless necessary */}
+                    <div className={styles.chatRoom}>
+                        <div className={styles.chatContainer}>
+                            <div className={styles.sidebarHeader}>
+                                <h1>People</h1>
+                                <button className={styles.closeBtn} onClick={() => setActiveTab(null)}>✕</button>
+                            </div>
+                            <div className={styles.participantsList}>
+                                {participants.map(p => (
+                                    <div key={p.socketId} className={styles.participantItem}>
+                                        <div className={styles.participantAvatar}>
+                                            {p.username.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className={styles.participantInfo}>
+                                            <span className={styles.participantName}>
+                                                {p.username} {p.socketId === socketId ? "(You)" : ""}
+                                            </span>
+                                            {p.role === "host" && (
+                                                <span className={styles.hostBadge}>Host</span>
+                                            )}
+                                        </div>
+                                        <div className={styles.participantAction}>
+                                            {/* Show Kick button only if I am host and this is not me */}
+                                            {participants.find(u => u.socketId === socketId)?.role === "host" && p.socketId !== socketId && (
+                                                <Button 
+                                                    size="small" 
+                                                    color="error" 
+                                                    onClick={() => kickUser(p.socketId)}
+                                                    sx={{ mr: 1, textTransform: 'none', fontSize: '0.75rem' }}
+                                                >
+                                                    Kick
+                                                </Button>
+                                            )}
+                                            {/* Mic icon logic (simplified for now as we don't have all remote mic states) */}
+                                            {p.socketId === socketId ? (
+                                                audio ? <MicIcon sx={{ fontSize: '1.2rem', color: '#fff' }} /> : <MicOffIcon sx={{ fontSize: '1.2rem', color: '#ea4335' }} />
+                                            ) : (
+                                                <MicIcon sx={{ fontSize: '1.2rem', color: '#fff' }} />
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

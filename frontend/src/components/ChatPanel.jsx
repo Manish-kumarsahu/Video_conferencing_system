@@ -6,7 +6,7 @@ import styles from '../styles/videoComponent.module.css';
 /**
  * Chat panel for in-meeting text communication.
  */
-const ChatPanel = memo(function ChatPanel({ messages, onSendMessage }) {
+const ChatPanel = memo(function ChatPanel({ messages, onSendMessage, onClose }) {
     const [message, setMessage] = useState("");
     const chatEndRef = useRef(null);
 
@@ -32,7 +32,10 @@ const ChatPanel = memo(function ChatPanel({ messages, onSendMessage }) {
     return (
         <div className={styles.chatRoom}>
             <div className={styles.chatContainer}>
-                <h1>Chat</h1>
+                <div className={styles.sidebarHeader}>
+                    <h1>In-call messages</h1>
+                    <button className={styles.closeBtn} onClick={onClose}>✕</button>
+                </div>
 
                 <div className={styles.chattingDisplay}>
                     {messages.length === 0 ? (
