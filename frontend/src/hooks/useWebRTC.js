@@ -12,7 +12,7 @@ const peerConfigConnections = {
  * Manages WebRTC peer connections and Socket.io signaling.
  * Accepts a createBlackSilence function from useMediaStream for fallback streams.
  */
-export default function useWebRTC(createBlackSilence) {
+export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVideo, onMeetingEnded) {
     const socketRef = useRef(null);
     const socketIdRef = useRef(null);
     const connectionsRef = useRef({});
@@ -122,10 +122,25 @@ export default function useWebRTC(createBlackSilence) {
 
     const resetNewMessages = useCallback(() => setNewMessages(0), []);
 
-    // ── Kick Functionality ────────────────────────────
+    // ── Host Controls ─────────────────────────────────
     const kickUser = useCallback((targetId) => {
         const roomId = window.location.pathname;
         socketRef.current?.emit('kick-user', roomId, targetId);
+    }, []);
+
+    const muteAll = useCallback(() => {
+        const roomId = window.location.pathname;
+        socketRef.current?.emit('mute-all', roomId);
+    }, []);
+
+    const stopVideoAll = useCallback(() => {
+        const roomId = window.location.pathname;
+        socketRef.current?.emit('stop-video-all', roomId);
+    }, []);
+
+    const endMeetingAll = useCallback(() => {
+        const roomId = window.location.pathname;
+        socketRef.current?.emit('end-meeting-all', roomId);
     }, []);
 
     // ── Connect to socket server ───────────────────────
@@ -147,6 +162,18 @@ export default function useWebRTC(createBlackSilence) {
             socketRef.current.on('kicked', () => {
                 alert("You have been removed from the meeting by the host.");
                 window.location.href = "/";
+            });
+
+            socketRef.current.on('force-mute', () => {
+                if (onForceMute) onForceMute();
+            });
+
+            socketRef.current.on('force-stop-video', () => {
+                if (onForceStopVideo) onForceStopVideo();
+            });
+
+            socketRef.current.on('meeting-ended', () => {
+                if (onMeetingEnded) onMeetingEnded();
             });
 
             socketRef.current.on('user-left', (id) => {
@@ -245,6 +272,9 @@ export default function useWebRTC(createBlackSilence) {
         resetNewMessages,
         connectToSocket,
         renegotiateAll,
-        kickUser
+        kickUser,
+        muteAll,
+        stopVideoAll,
+        endMeetingAll
     };
 }

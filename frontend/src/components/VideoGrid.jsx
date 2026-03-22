@@ -37,9 +37,6 @@ const VideoGrid = memo(function VideoGrid({ videos, localVideoRef, localAudio, l
                 <div className={styles.videoOverlay}>
                     <div className={styles.overlayBottomLeft}>
                         <span className={styles.userName}>{localUsername || "You"}</span>
-                        {getParticipant(socketId)?.role === "host" && (
-                            <span className={styles.videoHostBadge}>Host</span>
-                        )}
                     </div>
                     <div className={styles.overlayTopRight}>
                         <div className={styles.statusIcon}>
@@ -67,9 +64,6 @@ const VideoGrid = memo(function VideoGrid({ videos, localVideoRef, localAudio, l
                         <div className={styles.videoOverlay}>
                             <div className={styles.overlayBottomLeft}>
                                 <span className={styles.userName}>{p ? p.username : `User ${vid.socketId.substring(0, 4)}`}</span>
-                                {p?.role === "host" && (
-                                    <span className={styles.videoHostBadge}>Host</span>
-                                )}
                             </div>
                             <div className={styles.overlayTopRight}>
                                 <div className={styles.statusIcon}>

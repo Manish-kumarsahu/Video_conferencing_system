@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TextField, Button } from '@mui/material';
+import { TextField, Button, Tooltip } from '@mui/material';
 import styles from '../styles/videoComponent.module.css';
 
 import useMediaStream from '../hooks/useMediaStream';
@@ -10,6 +10,10 @@ import ChatPanel from '../components/ChatPanel';
 import MeetingControls from '../components/MeetingControls';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import VideocamOffIcon from '@mui/icons-material/VideocamOff';
+import VideocamOffOutlinedIcon from '@mui/icons-material/VideocamOffOutlined';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 export default function VideoMeetComponent() {
@@ -18,22 +22,99 @@ export default function VideoMeetComponent() {
     const [askForUsername, setAskForUsername] = useState(true);
     const [username, setUsername] = useState("");
 
+    // ── Lobby device toggle states ──
+    const [cameraOn, setCameraOn] = useState(true);
+    const [micOn, setMicOn] = useState(true);
+    const [lobbyStream, setLobbyStream] = useState(null);
+    const [permissionError, setPermissionError] = useState('');
+    const lobbyVideoRef = useRef(null);
+
     const {
         localVideoRef,
         video, audio, screen, screenAvailable,
         startMedia, getUserMedia, getDisplayMedia,
         stopAllTracks, toggleVideo, toggleAudio,
         toggleScreen, createBlackSilence,
+        forceDisableVideo, forceDisableAudio
     } = useMediaStream();
+
+    const handleMeetingEnded = useCallback(() => {
+        alert("The host has ended the meeting for everyone.");
+        stopAllTracks();
+        navigate("/home");
+    }, [stopAllTracks, navigate]);
 
     const {
         videos, messages, newMessages,
         participants, socketId,
         sendMessage, resetNewMessages,
         connectToSocket, renegotiateAll,
-        kickUser
-    } = useWebRTC(createBlackSilence);
+        kickUser, muteAll, stopVideoAll, endMeetingAll
+    } = useWebRTC(createBlackSilence, forceDisableAudio, forceDisableVideo, handleMeetingEnded);
 
+    // ── Lobby: start preview stream on mount ──
+    useEffect(() => {
+        if (!askForUsername) return;
+        let cancelled = false;
+
+        const startPreview = async () => {
+            // Stop any existing lobby stream
+            if (lobbyStream) {
+                lobbyStream.getTracks().forEach(t => t.stop());
+            }
+            setPermissionError('');
+
+            if (!cameraOn && !micOn) {
+                if (lobbyVideoRef.current) lobbyVideoRef.current.srcObject = null;
+                setLobbyStream(null);
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: cameraOn ? { facingMode: 'user' } : false,
+                    audio: micOn,
+                });
+                if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+
+                stream.getAudioTracks().forEach(t => { t.enabled = micOn; });
+                setLobbyStream(stream);
+
+                if (cameraOn && lobbyVideoRef.current) {
+                    lobbyVideoRef.current.srcObject = stream;
+                } else if (lobbyVideoRef.current) {
+                    lobbyVideoRef.current.srcObject = null;
+                }
+            } catch (err) {
+                if (cancelled) return;
+                console.error('Lobby media error:', err);
+                if (err.name === 'NotAllowedError') {
+                    setPermissionError('Camera/microphone access was denied. Please allow in browser settings.');
+                } else if (err.name === 'NotFoundError') {
+                    setPermissionError('No camera or microphone found. Please connect a device.');
+                } else {
+                    setPermissionError('Could not access media devices. Check browser permissions.');
+                }
+                setLobbyStream(null);
+            }
+        };
+
+        startPreview();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cameraOn, micOn, askForUsername]);
+
+    // Cleanup lobby stream on unmount
+    useEffect(() => {
+        return () => {
+            if (lobbyStream) {
+                lobbyStream.getTracks().forEach(t => t.stop());
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── In-meeting: react to video/audio state changes ──
     useEffect(() => {
         if (video !== undefined && audio !== undefined) {
             getUserMedia((stream) => renegotiateAll(stream));
@@ -49,14 +130,19 @@ export default function VideoMeetComponent() {
     }, [screen]);
 
     const connect = useCallback(() => {
+        // Stop lobby stream before joining meeting
+        if (lobbyStream) {
+            lobbyStream.getTracks().forEach(t => t.stop());
+            setLobbyStream(null);
+        }
         setAskForUsername(false);
-        startMedia();
+        startMedia(cameraOn, micOn);
         connectToSocket(username);
-    }, [startMedia, connectToSocket, username]);
+    }, [startMedia, connectToSocket, username, lobbyStream, cameraOn, micOn]);
 
-    const handleEndCall = useCallback(() => {
+    const handleLeaveCall = useCallback(() => {
         stopAllTracks();
-        navigate("/");
+        navigate("/home");
     }, [stopAllTracks, navigate]);
 
     const handleSendMessage = useCallback((messageText) => {
@@ -85,13 +171,36 @@ export default function VideoMeetComponent() {
             <div className={styles.lobbyScreen}>
                 <h2>Enter the Lobby</h2>
                 <p style={{ color: "#9ca3af", fontSize: "0.95rem" }}>
-                    Your camera preview — choose a name before joining.
+                    Preview your camera and microphone before joining.
                 </p>
 
+                {/* Camera Preview */}
                 <div className={styles.lobbyPreview}>
-                    <video ref={localVideoRef} autoPlay muted />
+                    {!cameraOn && (
+                        <div className={styles.cameraOffPlaceholder}>
+                            <VideocamOffOutlinedIcon sx={{ fontSize: '3rem', color: '#475569', mb: 1 }} />
+                            <span className={styles.cameraOffText}>Camera is off</span>
+                        </div>
+                    )}
+                    <video
+                        ref={lobbyVideoRef}
+                        autoPlay
+                        muted
+                        style={{ display: cameraOn ? 'block' : 'none' }}
+                    />
                 </div>
 
+                {/* Permission error banner */}
+                {permissionError && (
+                    <div className={styles.permissionError} style={{ marginBottom: '16px' }}>
+                        <WarningAmberIcon sx={{ fontSize: '1.1rem', flexShrink: 0 }} />
+                        <span>{permissionError}</span>
+                    </div>
+                )}
+
+
+
+                {/* Name input + Toggles + Join button */}
                 <div className={styles.lobbyForm}>
                     <TextField
                         id="lobby-username"
@@ -103,6 +212,7 @@ export default function VideoMeetComponent() {
                         size="medium"
                         sx={{ minWidth: 220 }}
                     />
+                    
                     <Button
                         variant="contained"
                         color="primary"
@@ -112,6 +222,34 @@ export default function VideoMeetComponent() {
                     >
                         Join Meeting
                     </Button>
+
+                    <Tooltip title={cameraOn ? "Turn off camera" : "Turn on camera"} placement="top">
+                        <button
+                            id="lobby-camera-toggle"
+                            className={`${styles.lobbyToggleBtn} ${!cameraOn ? styles.lobbyToggleBtnOff : ''}`}
+                            onClick={() => setCameraOn(prev => !prev)}
+                            aria-label={cameraOn ? "Turn off camera" : "Turn on camera"}
+                        >
+                            {cameraOn
+                                ? <VideocamIcon sx={{ fontSize: '1.5rem' }} />
+                                : <VideocamOffIcon sx={{ fontSize: '1.5rem' }} />
+                            }
+                        </button>
+                    </Tooltip>
+
+                    <Tooltip title={micOn ? "Mute microphone" : "Unmute microphone"} placement="top">
+                        <button
+                            id="lobby-mic-toggle"
+                            className={`${styles.lobbyToggleBtn} ${!micOn ? styles.lobbyToggleBtnOff : ''}`}
+                            onClick={() => setMicOn(prev => !prev)}
+                            aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
+                        >
+                            {micOn
+                                ? <MicIcon sx={{ fontSize: '1.5rem' }} />
+                                : <MicOffIcon sx={{ fontSize: '1.5rem' }} />
+                            }
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
         );
@@ -121,17 +259,17 @@ export default function VideoMeetComponent() {
         <div className={styles.meetLayout}>
             <div className={`${styles.mainVideoArea} ${activeTab ? styles.withSidebar : ''}`}>
                 <div className={styles.videoGridWrapper}>
-                    <VideoGrid 
-                        videos={videos} 
-                        localVideoRef={localVideoRef} 
-                        localAudio={audio} 
-                        localVideo={video} 
-                        localUsername={username} 
+                    <VideoGrid
+                        videos={videos}
+                        localVideoRef={localVideoRef}
+                        localAudio={audio}
+                        localVideo={video}
+                        localUsername={username}
                         participants={participants}
                         socketId={socketId}
                     />
                 </div>
-                
+
                 <MeetingControls
                     video={video}
                     audio={audio}
@@ -143,7 +281,9 @@ export default function VideoMeetComponent() {
                     onToggleScreen={toggleScreen}
                     onToggleChat={handleToggleChat}
                     onTogglePeople={handleTogglePeople}
-                    onEndCall={handleEndCall}
+                    onLeaveCall={handleLeaveCall}
+                    onEndMeetingAll={endMeetingAll}
+                    isHost={participants.find(u => u.socketId === socketId)?.role === "host"}
                     activeTab={activeTab}
                 />
             </div>
@@ -177,16 +317,13 @@ export default function VideoMeetComponent() {
                                             <span className={styles.participantName}>
                                                 {p.username} {p.socketId === socketId ? "(You)" : ""}
                                             </span>
-                                            {p.role === "host" && (
-                                                <span className={styles.hostBadge}>Host</span>
-                                            )}
                                         </div>
                                         <div className={styles.participantAction}>
                                             {/* Show Kick button only if I am host and this is not me */}
                                             {participants.find(u => u.socketId === socketId)?.role === "host" && p.socketId !== socketId && (
-                                                <Button 
-                                                    size="small" 
-                                                    color="error" 
+                                                <Button
+                                                    size="small"
+                                                    color="error"
                                                     onClick={() => kickUser(p.socketId)}
                                                     sx={{ mr: 1, textTransform: 'none', fontSize: '0.75rem' }}
                                                 >

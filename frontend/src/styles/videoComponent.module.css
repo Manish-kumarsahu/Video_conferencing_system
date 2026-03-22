@@ -7,7 +7,8 @@
   display: flex;
   width: 100vw;
   height: 100vh;
-  background-color: #0f172a; /* Slate 900 */
+  background-color: #0f172a;
+  /* Slate 900 */
   overflow: hidden;
   font-family: 'Inter', -apple-system, sans-serif;
 }
@@ -31,7 +32,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding-bottom: 90px; /* Space for controls */
+  padding-bottom: 90px;
+  /* Space for controls */
 }
 
 /* ── Video Grid Layouts ── */
@@ -48,9 +50,11 @@
 
 .videoWrapper {
   position: relative;
-  border-radius: 1rem; /* Rounded xl */
+  border-radius: 1rem;
+  /* Rounded xl */
   overflow: hidden;
-  background-color: #1e293b; /* Slate 800 */
+  background-color: #1e293b;
+  /* Slate 800 */
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
@@ -103,9 +107,13 @@
   .meetLayout {
     flex-direction: column;
   }
-  .grid2 .videoWrapper, .grid4 .videoWrapper, .gridMore .videoWrapper {
+
+  .grid2 .videoWrapper,
+  .grid4 .videoWrapper,
+  .gridMore .videoWrapper {
     width: 100%;
   }
+
   .videoGridWrapper {
     overflow-y: auto;
     align-items: flex-start;
@@ -191,7 +199,8 @@
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: rgba(17, 24, 39, 0.85); /* Gray 900 glass */
+  background: rgba(17, 24, 39, 0.85);
+  /* Gray 900 glass */
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 100px;
@@ -212,7 +221,8 @@
 .sidebarPanel {
   width: 360px;
   height: 100vh;
-  background-color: #111827; /* Gray 900 */
+  background-color: #111827;
+  /* Gray 900 */
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
@@ -231,8 +241,13 @@
 }
 
 @keyframes slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 .sidebarHeader {
@@ -288,7 +303,8 @@
   gap: 16px;
 }
 
-.chatMsgSender, .chatMsgReceiver {
+.chatMsgSender,
+.chatMsgReceiver {
   padding: 10px 14px;
   max-width: 85%;
   animation: msg-in 0.2s ease both;
@@ -309,22 +325,31 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.chatMsgSender p:first-child, .chatMsgReceiver p:first-child {
+.chatMsgSender p:first-child,
+.chatMsgReceiver p:first-child {
   font-size: 0.75rem;
   font-weight: 600;
   margin-bottom: 4px;
   opacity: 0.8;
 }
 
-.chatMsgSender p:last-child, .chatMsgReceiver p:last-child {
+.chatMsgSender p:last-child,
+.chatMsgReceiver p:last-child {
   font-size: 0.95rem;
   line-height: 1.4;
   margin: 0;
 }
 
 @keyframes msg-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .chattingArea {
@@ -405,7 +430,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  gap: 2rem;
+  gap: 1.25rem;
   padding: 2rem;
   background-color: #0f172a;
 }
@@ -427,6 +452,7 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   background: #1e293b;
+  position: relative;
 }
 
 .lobbyPreview video {
@@ -472,7 +498,130 @@
   .lobbyForm {
     flex-direction: column;
   }
+
   .lobbyForm button {
     width: 100%;
+  }
+}
+
+/* ── Lobby Device Controls ── */
+.lobbyControls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.lobbyControlsInline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.lobbyToggleBtn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition:
+    background 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s ease;
+}
+
+.lobbyToggleBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.08);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.lobbyToggleBtn:active {
+  transform: scale(0.95);
+}
+
+.lobbyToggleBtnOff {
+  background: rgba(234, 67, 53, 0.85);
+  box-shadow: 0 4px 14px rgba(234, 67, 53, 0.4);
+}
+
+.lobbyToggleBtnOff:hover {
+  background: rgba(234, 67, 53, 1);
+  box-shadow: 0 6px 20px rgba(234, 67, 53, 0.5);
+}
+
+/* Device state labels */
+.lobbyDeviceLabels {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-top: -4px;
+}
+
+.labelOn {
+  color: #86efac;
+}
+
+.labelOff {
+  color: #f87171;
+}
+
+/* Camera-off placeholder */
+.cameraOffPlaceholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #0f1f38;
+  border-radius: 1rem;
+  z-index: 1;
+  gap: 8px;
+}
+
+.cameraOffText {
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+/* Permission error banner */
+.permissionError {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 640px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(234, 67, 53, 0.12);
+  border: 1px solid rgba(234, 67, 53, 0.35);
+  color: #fca5a5;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  animation: fade-in 0.3s ease both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

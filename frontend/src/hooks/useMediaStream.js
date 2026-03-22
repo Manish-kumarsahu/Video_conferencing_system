@@ -150,9 +150,9 @@ export default function useMediaStream() {
     }, [screen, getUserMedia, createBlackSilence]);
 
     // --- Start media (called when user clicks Connect in lobby) ---
-    const startMedia = useCallback(() => {
-        setVideo(videoAvailable);
-        setAudio(audioAvailable);
+    const startMedia = useCallback((cameraOn = videoAvailable, micOn = audioAvailable) => {
+        setVideo(cameraOn && videoAvailable);
+        setAudio(micOn && audioAvailable);
     }, [videoAvailable, audioAvailable]);
 
     // --- Cleanup on unmount ---
@@ -167,6 +167,10 @@ export default function useMediaStream() {
     const toggleVideo = useCallback(() => setVideo(prev => !prev), []);
     const toggleAudio = useCallback(() => setAudio(prev => !prev), []);
     const toggleScreen = useCallback(() => setScreen(prev => !prev), []);
+
+    // --- Force disable handlers (used by host controls) ---
+    const forceDisableVideo = useCallback(() => setVideo(false), []);
+    const forceDisableAudio = useCallback(() => setAudio(false), []);
 
     return {
         localVideoRef,
@@ -183,6 +187,8 @@ export default function useMediaStream() {
         toggleVideo,
         toggleAudio,
         toggleScreen,
+        forceDisableVideo,
+        forceDisableAudio,
         createBlackSilence,
     };
 }

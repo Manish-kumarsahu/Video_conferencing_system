@@ -59,10 +59,38 @@ export const connectToSocket = (server) => {
             if (requester && requester.role === "host") {
                 // Emit kicked event to the target
                 io.to(targetId).emit("kicked");
-                
-                // The target's socket will likely disconnect or the frontend will handle it.
-                // We don't manually remove here because disconnect handler will catch it,
-                // but we can force disconnect if needed: io.sockets.sockets.get(targetId)?.disconnect();
+            }
+        });
+
+        // ── Host Controls: Mute All & Stop Video All ───
+        socket.on("mute-all", (roomId) => {
+            const roomUsers = connections[roomId] || [];
+            const requester = roomUsers.find(u => u.socketId === socket.id);
+            
+            if (requester && requester.role === "host") {
+                // Tell everyone else to mute
+                socket.to(roomId).emit("force-mute");
+            }
+        });
+
+        socket.on("stop-video-all", (roomId) => {
+            const roomUsers = connections[roomId] || [];
+            const requester = roomUsers.find(u => u.socketId === socket.id);
+            
+            if (requester && requester.role === "host") {
+                // Tell everyone else to turn off video
+                socket.to(roomId).emit("force-stop-video");
+            }
+        });
+
+        socket.on("end-meeting-all", (roomId) => {
+            const roomUsers = connections[roomId] || [];
+            const requester = roomUsers.find(u => u.socketId === socket.id);
+            
+            if (requester && requester.role === "host") {
+                // Broadcast to everyone (including host) that the meeting has ended
+                io.to(roomId).emit("meeting-ended");
+                // The remaining cleanup will happen via disconnects from the clients
             }
         });
 

@@ -1,8 +1,9 @@
-import React, { memo } from 'react';
-import { IconButton, Badge, Tooltip } from '@mui/material';
+import React, { memo, useState } from 'react';
+import { IconButton, Badge, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import CallEndIcon from '@mui/icons-material/CallEnd';
+import LogoutIcon from '@mui/icons-material/Logout';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
@@ -15,10 +16,33 @@ import styles from '../styles/videoComponent.module.css';
  */
 const MeetingControls = memo(function MeetingControls({
     video, audio, screen, screenAvailable,
-    newMessages, activeTab,
+    newMessages, activeTab, isHost,
     onToggleVideo, onToggleAudio, onToggleScreen,
-    onToggleChat, onTogglePeople, onEndCall,
+    onToggleChat, onTogglePeople, onLeaveCall, onEndMeetingAll
 }) {
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
+
+    const handleEndClick = (event) => {
+        if (isHost) {
+            setAnchorEl(event.currentTarget);
+        } else {
+            onLeaveCall();
+        }
+    };
+
+    const handleClose = () => setAnchorEl(null);
+
+    const handleLeave = () => {
+        handleClose();
+        onLeaveCall();
+    };
+
+    const handleEndAll = () => {
+        handleClose();
+        if (onEndMeetingAll) onEndMeetingAll();
+    };
+
     return (
         <div className={styles.buttonContainers}>
             {/* ── Camera ── */}
@@ -142,9 +166,9 @@ const MeetingControls = memo(function MeetingControls({
             </Tooltip>
 
             {/* ── End Call ── */}
-            <Tooltip title="Leave call">
+            <Tooltip title={isHost ? "End options" : "Leave call"}>
                 <IconButton
-                    onClick={onEndCall}
+                    onClick={handleEndClick}
                     sx={{
                         color: "#fff",
                         background: "#ea4335",
@@ -164,6 +188,28 @@ const MeetingControls = memo(function MeetingControls({
                     <CallEndIcon />
                 </IconButton>
             </Tooltip>
+
+            {/* Host End Call Menu */}
+            <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <MenuItem onClick={handleLeave}>
+                    <ListItemIcon>
+                        <LogoutIcon fontSize="small" color="action" />
+                    </ListItemIcon>
+                    <ListItemText>Leave Call</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleEndAll}>
+                    <ListItemIcon>
+                        <CallEndIcon fontSize="small" color="error" />
+                    </ListItemIcon>
+                    <ListItemText primaryTypographyProps={{ color: 'error' }}>End Meeting for All</ListItemText>
+                </MenuItem>
+            </Menu>
         </div>
     );
 });
