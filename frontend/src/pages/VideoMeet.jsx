@@ -5,9 +5,11 @@ import styles from '../styles/videoComponent.module.css';
 
 import useMediaStream from '../hooks/useMediaStream';
 import useWebRTC from '../hooks/useWebRTC';
+import useCaptions from '../hooks/useCaptions';
 import VideoGrid from '../components/VideoGrid';
 import ChatPanel from '../components/ChatPanel';
 import MeetingControls from '../components/MeetingControls';
+import CaptionsOverlay from '../components/CaptionsOverlay';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import VideocamIcon from '@mui/icons-material/Videocam';
@@ -49,8 +51,10 @@ export default function VideoMeetComponent() {
         participants, socketId,
         sendMessage, resetNewMessages,
         connectToSocket, renegotiateAll,
-        kickUser, muteAll, stopVideoAll, endMeetingAll
+        kickUser, muteAll, stopVideoAll, endMeetingAll, getSocket
     } = useWebRTC(createBlackSilence, forceDisableAudio, forceDisableVideo, handleMeetingEnded);
+
+    const { captionsOn, toggleCaptions, captions } = useCaptions(getSocket(), username);
 
     // ── Lobby: start preview stream on mount ──
     useEffect(() => {
@@ -270,15 +274,19 @@ export default function VideoMeetComponent() {
                     />
                 </div>
 
+                <CaptionsOverlay captions={captions} />
+
                 <MeetingControls
                     video={video}
                     audio={audio}
                     screen={screen}
                     screenAvailable={screenAvailable}
+                    captionsOn={captionsOn}
                     newMessages={newMessages}
                     onToggleVideo={toggleVideo}
                     onToggleAudio={toggleAudio}
                     onToggleScreen={toggleScreen}
+                    onToggleCaptions={toggleCaptions}
                     onToggleChat={handleToggleChat}
                     onTogglePeople={handleTogglePeople}
                     onLeaveCall={handleLeaveCall}

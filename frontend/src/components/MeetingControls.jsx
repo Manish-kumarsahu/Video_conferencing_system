@@ -8,6 +8,8 @@ import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
+import ClosedCaptionIcon from '@mui/icons-material/ClosedCaption';
+import ClosedCaptionOffIcon from '@mui/icons-material/ClosedCaptionOff';
 import ChatIcon from '@mui/icons-material/Chat';
 import styles from '../styles/videoComponent.module.css';
 
@@ -15,9 +17,9 @@ import styles from '../styles/videoComponent.module.css';
  * Bottom toolbar with video, audio, screen share, chat, participants, and end call controls.
  */
 const MeetingControls = memo(function MeetingControls({
-    video, audio, screen, screenAvailable,
+    video, audio, screen, screenAvailable, captionsOn,
     newMessages, activeTab, isHost,
-    onToggleVideo, onToggleAudio, onToggleScreen,
+    onToggleVideo, onToggleAudio, onToggleScreen, onToggleCaptions,
     onToggleChat, onTogglePeople, onLeaveCall, onEndMeetingAll
 }) {
     const [anchorEl, setAnchorEl] = useState(null);
@@ -86,6 +88,27 @@ const MeetingControls = memo(function MeetingControls({
                     }}
                 >
                     {audio ? <MicIcon /> : <MicOffIcon />}
+                </IconButton>
+            </Tooltip>
+
+            {/* ── Captions ── */}
+            <Tooltip title={captionsOn ? "Turn off captions" : "Turn on captions"}>
+                <IconButton
+                    onClick={onToggleCaptions}
+                    sx={{
+                        color: captionsOn ? "#00d4ff" : "#fff",
+                        background: captionsOn ? "rgba(0,212,255,0.12)" : "rgba(255,255,255,0.08)",
+                        border: "1px solid",
+                        borderColor: captionsOn ? "rgba(0,212,255,0.3)" : "rgba(255,255,255,0.12)",
+                        borderRadius: "50%",
+                        width: 50, height: 50,
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                            background: "rgba(0,212,255,0.2)",
+                        },
+                    }}
+                >
+                    {captionsOn ? <ClosedCaptionIcon /> : <ClosedCaptionOffIcon />}
                 </IconButton>
             </Tooltip>
 

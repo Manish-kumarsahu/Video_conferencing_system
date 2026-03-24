@@ -38,7 +38,7 @@ export default function Authentication() {
         setFormState(0);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "An error occurred. Please try again.");
+      setError(err.response?.data?.message || err.message || "An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }

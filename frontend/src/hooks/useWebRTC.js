@@ -262,6 +262,8 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
         });
     }, [gotMessageFromServer, addMessage, createBlackSilence]);
 
+    const getSocket = () => socketRef.current;
+
     return {
         videos,
         messages,
@@ -275,6 +277,7 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
         kickUser,
         muteAll,
         stopVideoAll,
-        endMeetingAll
+        endMeetingAll,
+        getSocket
     };
 }

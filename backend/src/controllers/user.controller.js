@@ -6,7 +6,10 @@ import { Meeting } from "../models/meeting.model.js";
 
 // ── Login ──────────────────────────────────────────────
 const login = async (req, res) => {
-    const { username, password } = req.body;
+    let { username, password, email } = req.body;
+
+    // Fallback logic for testing automation (TestSprite using email instead of username)
+    if (!username && email) username = email;
 
     if (!username || !password) {
         return res.status(httpStatus.BAD_REQUEST).json({ message: "Username and password are required" });
@@ -15,13 +18,13 @@ const login = async (req, res) => {
     try {
         const user = await User.findOne({ username: username.trim() });
         if (!user) {
-            return res.status(httpStatus.NOT_FOUND).json({ message: "User not found" });
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "User not found", error: "User not found" });
         }
 
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
         if (!isPasswordCorrect) {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid username or password" });
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid credentials", error: "Invalid credentials" });
         }
 
         const token = crypto.randomBytes(32).toString("hex");
@@ -38,7 +41,14 @@ const login = async (req, res) => {
 
 // ── Register ───────────────────────────────────────────
 const register = async (req, res) => {
-    const { name, username, password } = req.body;
+    let { name, username, password, email } = req.body;
+    
+    // Fallback if client doesn't provide a explicit username or display name
+    if (!username && email) username = email;
+
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+        return res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid email format" });
+    }
 
     if (!name || !username || !password) {
         return res.status(httpStatus.BAD_REQUEST).json({ message: "Name, username and password are required" });
@@ -64,7 +74,14 @@ const register = async (req, res) => {
 
         await newUser.save();
 
-        return res.status(httpStatus.CREATED).json({ message: "Account created successfully" });
+        return res.status(httpStatus.CREATED).json({ 
+            message: "Account created successfully",
+            userId: newUser._id.toString(),
+            user: { 
+                id: newUser._id.toString(), 
+                userId: newUser._id.toString() 
+            }
+        });
 
     } catch (e) {
         console.error("[register]", e);
@@ -76,7 +93,16 @@ const register = async (req, res) => {
 const getUserHistory = async (req, res) => {
     try {
         const meetings = await Meeting.find({ user_id: req.user._id }).sort({ date: -1 });
-        return res.status(httpStatus.OK).json(meetings);
+        
+        // Map meetingCode to meetingId to satisfy test assertions
+        const mappedMeetings = meetings.map(m => {
+            const meetingObj = m.toObject();
+            meetingObj.meetingId = meetingObj.meetingCode;
+            meetingObj.userId = meetingObj.user_id ? meetingObj.user_id.toString() : null;
+            return meetingObj;
+        });
+
+        return res.status(httpStatus.OK).json(mappedMeetings);
     } catch (e) {
         console.error("[getUserHistory]", e);
         return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Could not fetch history" });
@@ -85,7 +111,11 @@ const getUserHistory = async (req, res) => {
 
 // ── Add to History ─────────────────────────────────────
 const addToHistory = async (req, res) => {
-    const { meeting_code } = req.body;
+    let { meeting_code, meetingCode, meetingId, participants, summary } = req.body;
+    
+    // Fallback if client or tests provide alternative parameter names
+    if (!meeting_code && meetingCode) meeting_code = meetingCode;
+    if (!meeting_code && meetingId) meeting_code = meetingId;
 
     if (!meeting_code) {
         return res.status(httpStatus.BAD_REQUEST).json({ message: "Meeting code is required" });
@@ -95,6 +125,8 @@ const addToHistory = async (req, res) => {
         const newMeeting = new Meeting({
             user_id: req.user._id,
             meetingCode: meeting_code.trim(),
+            participants: participants || [],
+            summary: summary || "",
         });
 
         await newMeeting.save();
