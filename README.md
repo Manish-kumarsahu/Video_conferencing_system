@@ -1,9 +1,9 @@
-<h1 align="center">🎥 Video Conferencing System</h1>
+<h1 align="center">🎥 NexaMeet - Video Conferencing System</h1>
 
 <p align="center">
-  A full-stack, real-time video conferencing application built with the <strong>MERN Stack</strong> and <strong>WebRTC</strong>.
+  A premium, full-stack, real-time video conferencing application built with the <strong>MERN Stack</strong>, <strong>WebRTC</strong>, and <strong>AI Real-time Transcription</strong>.
   <br />
-  Connect, collaborate, and communicate — directly in your browser.
+  Connect, collaborate, and communicate — directly in your browser with real-time captions.
 </p>
 
 <p align="center">
@@ -12,6 +12,7 @@
   <img src="https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Socket.io-4-010101?logo=socket.io&logoColor=white&style=for-the-badge" />
   <img src="https://img.shields.io/badge/WebRTC-Enabled-333?logo=webrtc&logoColor=white&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Deepgram-AI--Captions-00d4ff?logo=deepgram&logoColor=white&style=for-the-badge" />
 </p>
 
 ---
@@ -19,7 +20,8 @@
 ## 📌 Table of Contents
 
 - [Overview](#-overview)
-- [Features](#-features)
+- [New Key Features](#-new-key-features)
+- [Core Features](#-core-features)
 - [Tech Stack](#-tech-stack)
 - [Architecture Overview](#-architecture-overview)
 - [Project Structure](#-project-structure)
@@ -28,29 +30,36 @@
 - [API Reference](#-api-reference)
 - [How to Use](#-how-to-use)
 - [NPM Scripts](#-npm-scripts)
-- [Deployment Notes](#-deployment-notes)
 - [Future Improvements](#-future-improvements)
 
 ---
 
 ## 🌐 Overview
 
-**Video Conferencing System** is a feature-rich, browser-based video calling platform that enables users to host or join live video meetings instantly — no downloads required. Built on the MERN stack with WebRTC for peer-to-peer media streaming and Socket.io for real-time signaling, the application handles multi-participant video calls, in-meeting chat, and user meeting history, all behind a secure JWT-based authentication system.
+**NexaMeet** is a feature-rich, browser-based video calling platform that enables users to host or join live video meetings instantly. Built on the MERN stack with WebRTC for peer-to-peer media streaming and Socket.io for real-time signaling, the application now includes AI-powered real-time transcription via Deepgram and advanced host controls.
 
 ---
 
-## ✨ Features
+## ✨ New Key Features
 
-| Feature                        | Description                                                                         |
-| ------------------------------ | ----------------------------------------------------------------------------------- |
-| 🎥 **Real-Time Video & Audio** | Peer-to-peer video calling powered by WebRTC with dynamic multi-participant support |
-| 💬 **In-Meeting Chat**         | Live chat panel during meetings using Socket.io                                     |
-| 🔐 **Secure Authentication**   | JWT-based login & registration with bcrypt password hashing and rate limiting       |
-| 📋 **Meeting History**         | Persistent log of all meetings a user has attended, stored in MongoDB               |
-| 🎛️ **Meeting Controls**        | Toggle camera/microphone, leave call, and manage media during a session             |
-| 🖥️ **Responsive Video Grid**   | Dynamic video tile layout that adapts to the number of participants                 |
-| 🌙 **Dark Mode UI**            | Modern dark-themed interface with Material UI components                            |
-| 🛡️ **Rate Limiting**           | Brute-force protection on authentication endpoints (10 requests / 15 min)           |
+| Feature                          | Description                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 🎙️ **AI Real-Time Transcription** | Deepgram-powered captions that provide live, speaker-identified transcripts during meetings.                  |
+| 🛠️ **Advanced Host Controls**     | The meeting creator (host) can kick users, mute all participants, stop all videos, or end the meeting for all. |
+| 📜 **Persistent Transcripts**     | All meeting transcripts are automatically saved to MongoDB and can be reviewed in the user's meeting history. |
+| 🎨 **Premium Glassmorphism UI**  | Modern dark-themed interface with high-fidelity components, smooth animations, and a polished user experience. |
+| 🛡️ **Enhanced Protection**        | Integrated rate-limiting for auth endpoints to prevent brute-force attacks.                                   |
+
+---
+
+## 🚀 Core Features
+
+- 🎥 **Real-Time Video & Audio**: High-performance P2P video calling using WebRTC.
+- 💬 **In-Meeting Chat**: Live messaging panel for seamless collaboration.
+- 🔐 **Secure Authentication**: JWT-based login/registration with bcrypt hashing.
+- 📋 **Meeting History**: A comprehensive log of past sessions, including participants and transcripts.
+- 🎛️ **Media Controls**: Dynamic toggling of camera and microphone states.
+- 📱 **Fully Responsive**: Optimized for desktops, tablets, and mobile browsers.
 
 ---
 
@@ -60,312 +69,156 @@
 
 | Technology               | Purpose                                      |
 | ------------------------ | -------------------------------------------- |
-| **React 18**             | Component-based UI framework                 |
-| **React Router DOM v6**  | Client-side routing and navigation           |
-| **Material UI (MUI) v5** | UI component library with dark theme support |
-| **Socket.io-client**     | Real-time WebSocket communication            |
-| **WebRTC**               | Peer-to-peer audio and video streaming       |
-| **Axios**                | HTTP client for REST API calls               |
+| **React 18**             | Core UI framework                           |
+| **React Router DOM v6**  | Client-side routing                         |
+| **Material UI (MUI) v5** | Component library for premium UI            |
+| **Socket.io-client**     | Real-time signaling and chat relay          |
+| **WebRTC**               | Peer-to-peer media streaming                |
+| **Axios**                | REST API communication                      |
 
 ### Backend
 
-| Technology               | Purpose                               |
-| ------------------------ | ------------------------------------- |
-| **Node.js**              | JavaScript runtime environment        |
-| **Express.js**           | REST API web server framework         |
-| **Socket.io**            | WebSocket server for signaling & chat |
-| **MongoDB + Mongoose**   | NoSQL database and ODM                |
-| **bcrypt**               | Password hashing                      |
-| **JSON Web Token (JWT)** | Stateless user authentication         |
-| **express-rate-limit**   | API rate limiting middleware          |
-| **dotenv**               | Environment variable management       |
+| Technology               | Purpose                                       |
+| ------------------------ | --------------------------------------------- |
+| **Node.js & Express**    | Scalable server-side infrastructure           |
+| **Socket.io**            | WebSocket server for signaling & host sync    |
+| **Deepgram SDK**         | AI-powered real-time audio analysis           |
+| **MongoDB + Mongoose**   | Database for users, meetings, and transcripts |
+| **bcrypt & JWT**         | Industry-standard security and authentication  |
+| **express-rate-limit**   | API request throttling and security           |
 
 ---
 
 ## 🏗️ Architecture Overview
 
+```mermaid
+graph TD
+    UserA[User Browser A] <--> |WebRTC P2P| UserB[User Browser B]
+    UserA <--> |Socket.io Signaling| Server[Express + Socket.io Server]
+    UserB <--> |Socket.io Signaling| Server
+    Server <--> |Auth / Data| DB[(MongoDB)]
+    Server --> |Audio Data| Deepgram[Deepgram AI SDK]
+    Deepgram --> |Transcripts| Server
+    Server --> |Live Captions| UserA
+    Server --> |Live Captions| UserB
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     CLIENT (Browser)                    │
-│                                                         │
-│  ┌───────────┐   HTTP/REST    ┌──────────────────────┐  │
-│  │  React UI │ ◄───────────►  │  Express REST API    │  │
-│  │  (Port    │                │  /api/v1/users/...   │  │
-│  │   3000)   │   WebSocket    ├──────────────────────┤  │
-│  │           │ ◄───────────►  │  Socket.io Server    │  │
-│  └─────┬─────┘                │  (Signaling + Chat)  │  │
-│        │                      └──────────┬───────────┘  │
-│        │  WebRTC (P2P)                  │               │
-│        │  SDP + ICE via Socket.io       │ Mongoose      │
-│        ▼                                ▼               │
-│  ┌─────────────────┐         ┌──────────────────────┐   │
-│  │  Remote Peer    │         │  MongoDB Atlas /     │   │
-│  │  (Other User)   │         │  Local MongoDB       │   │
-│  └─────────────────┘         │  (Users + Meetings)  │   │
-│                              └──────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
-
-**How it works:**
-
-1. **Authentication** — Users register/login via REST API. The server validates credentials, hashes passwords with bcrypt, and returns a JWT.
-2. **Meeting Rooms** — Each meeting has a unique URL path (e.g., `/abc123`). When a user navigates to it, they join a Socket.io room with that ID.
-3. **WebRTC Signaling** — The Socket.io server acts as a signaling relay. Peers exchange SDP offers/answers and ICE candidates through the server to establish a direct P2P media connection.
-4. **Chat & Controls** — Chat messages are relayed through Socket.io to all participants in the room. Media controls (mute/unmute, video on/off) are handled locally via the MediaStream API.
-5. **History** — When a meeting ends, the session is recorded to MongoDB under the user's activity log, accessible from the History page.
 
 ---
 
 ## 📁 Project Structure
 
-```
-Meet/
-├── backend/                    # Node.js + Express server
+```text
+Video_conferencing_system/
+├── backend/                    # Node.js Backend
 │   ├── src/
-│   │   ├── app.js              # Entry point — Express & Socket.io setup
+│   │   ├── app.js              # Entry point — Express & Socket.io
 │   │   ├── controllers/
-│   │   │   ├── user.controller.js    # Auth + history business logic
-│   │   │   └── socketManager.js      # WebRTC signaling & chat handlers
+│   │   │   ├── user.controller.js    # Auth + history logic
+│   │   │   └── socketManager.js      # WebRTC, Host Controls & Deepgram
 │   │   ├── middleware/
-│   │   │   └── auth.middleware.js    # JWT verification middleware
+│   │   │   └── auth.middleware.js    # JWT validation
 │   │   ├── models/
-│   │   │   ├── user.model.js         # User schema (Mongoose)
-│   │   │   └── meeting.model.js      # Meeting/activity schema
+│   │   │   ├── user.model.js         # User schema
+│   │   │   ├── meeting.model.js      # Meeting history schema
+│   │   │   └── transcript.model.js   # DB storage for transcripts
 │   │   └── routes/
-│   │       └── users.routes.js       # API route definitions
-│   ├── .env.example            # Environment variable template
-│   └── package.json
+│   │       └── users.routes.js       # Auth & history API endpoints
+│   ├── .env.example            # Env template
+│   └── package.json            # Backend dependencies
 │
-└── frontend/                   # React application
-    ├── public/
-    └── src/
-        ├── App.js              # Root component & route configuration
-        ├── pages/
-        │   ├── landing.jsx     # Landing / welcome page
-        │   ├── authentication.jsx  # Login & Register page
-        │   ├── home.jsx        # Dashboard — create or join meeting
-        │   ├── VideoMeet.jsx   # Main meeting room page
-        │   └── history.jsx     # Meeting history page
-        ├── components/
-        │   ├── VideoGrid.jsx       # Dynamic video tile grid
-        │   ├── MeetingControls.jsx # Camera/mic/leave controls
-        │   ├── ChatPanel.jsx       # In-meeting chat UI
-        │   └── ui/                 # Shared UI primitives
-        ├── hooks/
-        │   ├── useWebRTC.js        # WebRTC peer connection logic
-        │   └── useMediaStream.js   # Camera/microphone media stream
-        ├── contexts/
-        │   └── AuthContext.jsx     # Global auth state provider
-        ├── utils/                  # Shared utility helpers
-        └── environment.js          # API base URL configuration
+└── frontend/                   # React Frontend
+    ├── src/
+    │   ├── App.js              # Routing and Global Styles
+    │   ├── pages/
+    │   │   ├── landing.jsx     # Marketing Landing Page
+    │   │   ├── authentication.jsx  # Login/Register
+    │   │   ├── home.jsx        # Dashboard (Join/Create)
+    │   │   ├── VideoMeet.jsx   # Core Meeting Page
+    │   │   └── history.jsx     # Session history with transcripts
+    │   ├── components/
+    │   │   ├── VideoGrid.jsx       # Adaptive video tile system
+    │   │   ├── MeetingControls.jsx # Media toggles & Host controls
+    │   │   ├── ChatPanel.jsx       # Real-time chat UI
+    │   │   └── CaptionsOverlay.jsx # AI Transcription display
+    │   ├── hooks/
+    │   │   ├── useWebRTC.js        # WebRTC signaling logic
+    │   │   └── useCaptions.js      # Audio capture & Socket relay
+    │   └── contexts/
+    │       └── AuthContext.jsx     # Global Authentication State
 ```
 
 ---
 
 ## 🚀 Installation & Setup
 
-### Prerequisites
+1. **Clone & Install Backend**:
+   ```bash
+   cd backend
+   npm install
+   ```
 
-Make sure the following are installed on your machine:
+2. **Clone & Install Frontend**:
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- [npm](https://www.npmjs.com/) (comes with Node.js)
-- [MongoDB](https://www.mongodb.com/) — either a local instance or a free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) cluster
-- [Git](https://git-scm.com/)
+3. **Configure Environment Variables**:
+   Update `backend/.env` (see below).
 
----
-
-### Step 1: Clone the Repository
-
-```bash
-git clone https://github.com/<your-username>/Video_conferencing_system.git
-cd Video_conferencing_system
-```
-
----
-
-### Step 2: Install Backend Dependencies
-
-```bash
-cd backend
-npm install
-```
-
----
-
-### Step 3: Configure Backend Environment Variables
-
-Create a `.env` file inside the `backend/` directory by copying the example:
-
-```bash
-# Windows
-copy .env 
-
-# macOS / Linux
-cp .env
-```
-
-Then open `.env` and fill in your values (see [Environment Variables](#-environment-variables) below).
-
----
-
-### Step 4: Start the Backend Server
-
-```bash
-# Development (with auto-reload via nodemon)
-npm run dev
-
-# Production
-npm start
-```
-
-The backend will start at `http://localhost:8000`.
-
----
-
-### Step 5: Install Frontend Dependencies
-
-Open a **new terminal**, then:
-
-```bash
-cd frontend
-npm install
-```
-
----
-
-### Step 6: Start the Frontend
-
-```bash
-npm start
-```
-
-The React app will open at `http://localhost:3000`.
+4. **Start Development Servers**:
+   - Backend: `npm run dev` in `backend/`
+   - Frontend: `npm run dev` in `frontend/`
 
 ---
 
 ## 🔐 Environment Variables
 
-Create a `.env` file in the `backend/` directory with the following variables:
+Create a `.env` file in the `backend/` directory:
 
 ```env
-# MongoDB connection string
-# For Atlas: mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>
-# For local: mongodb://localhost:27017/videomeet
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>
-
-# The URL of your frontend (used for CORS)
+MONGODB_URI=your_mongodb_connection_string
 CORS_ORIGIN=http://localhost:3000
-
-# Port for the backend server
 PORT=8000
+JWT_SECRET=your_jwt_signing_key
+DEEPGRAM_API_KEY=your_deepgram_api_key
 ```
-
-> **Note:** A `JWT_SECRET` is used internally by the auth middleware. Add it as well if it is referenced in your `auth.middleware.js`:
->
-> ```env
-> JWT_SECRET=your_super_secret_key_here
-> ```
-
-> ⚠️ **Never commit your `.env` file to version control.** It is already included in `.gitignore`.
 
 ---
 
 ## 📡 API Reference
 
-Base URL: `http://localhost:8000/api/v1`
-
-All protected routes require a `token` header or cookie with a valid JWT.
-
 | Method | Endpoint                  | Auth   | Description                      |
 | ------ | ------------------------- | ------ | -------------------------------- |
-| `POST` | `/users/register`         | No     | Register a new user              |
-| `POST` | `/users/login`            | No     | Login and receive a JWT          |
-| `POST` | `/users/add_to_activity`  | ✅ Yes | Record a completed meeting       |
-| `GET`  | `/users/get_all_activity` | ✅ Yes | Fetch the user's meeting history |
-
-> Authentication endpoints are rate-limited to **10 requests per 15 minutes** per IP.
+| `POST` | `/users/register`         | No*    | Register new user (*Rate-limited) |
+| `POST` | `/users/login`            | No*    | Login and get JWT (*Rate-limited) |
+| `POST` | `/users/add_to_activity`  | ✅ Yes | Log a session with participants  |
+| `GET`  | `/users/get_all_activity` | ✅ Yes | Retrieve full meeting history    |
 
 ---
 
 ## 📖 How to Use
 
-1. **Register / Login**
-   - Navigate to `http://localhost:3000`
-   - Click **Get Started** to go to the authentication page
-   - Register a new account or log in with existing credentials
-
-2. **Create a Meeting**
-   - From the Home dashboard, click **New Meeting**
-   - A unique meeting ID is generated — share it with others
-
-3. **Join a Meeting**
-   - Paste a meeting ID/link into the **Join Meeting** field and click Join
-   - Grant camera and microphone permissions when prompted
-
-4. **In the Meeting Room**
-   - Your video appears in the grid alongside other participants
-   - Use the **control bar** at the bottom to:
-     - 🎤 Mute / unmute your microphone
-     - 📷 Turn your camera on / off
-     - 📞 Leave the meeting
-   - Open the **chat panel** to send messages to all participants
-
-5. **View Meeting History**
-   - Click **History** in the navigation
-   - See a chronological log of all meetings you have attended
+1. **Start a Session**: Log in and click "New Meeting" to generate a code.
+2. **Invite Others**: Share the code. The first person to join is the **Host**.
+3. **Toggle Captions**: Use the CC button to start AI transcription.
+4. **Manage Call**: If you are the host, use the additional control buttons to manage participants.
+5. **View History**: After leaving, go to the History page to see who was present and read the transcript.
 
 ---
 
 ## 📜 NPM Scripts
 
-### Backend (`/backend`)
-
-| Script  | Command              | Description                                  |
-| ------- | -------------------- | -------------------------------------------- |
-| `dev`   | `nodemon src/app.js` | Start server with hot-reload for development |
-| `start` | `node src/app.js`    | Start server for production                  |
-| `prod`  | `pm2 src/app.js`     | Start server using PM2 process manager       |
-
-### Frontend (`/frontend`)
-
-| Script  | Command               | Description                                |
-| ------- | --------------------- | ------------------------------------------ |
-| `start` | `react-scripts start` | Start development server on port 3000      |
-| `build` | `react-scripts build` | Build optimized production bundle          |
-| `test`  | `react-scripts test`  | Run test suite                             |
-| `eject` | `react-scripts eject` | Eject from Create React App (irreversible) |
-
----
-
-## ☁️ Deployment Notes
-
-### Backend Deployment (e.g., Render / Railway / DigitalOcean)
-
-1. Push your code to GitHub (ensure `.env` is in `.gitignore`).
-2. Create a new **Web Service** on your hosting provider, pointing to the `backend/` directory.
-3. Set the **Start Command** to `npm start`.
-4. Add all required environment variables (`MONGODB_URI`, `CORS_ORIGIN`, `PORT`, `JWT_SECRET`) in the provider's dashboard.
-
-### Frontend Deployment (e.g., Vercel / Netlify)
-
-1. Update `frontend/src/environment.js` to point to your deployed backend URL.
-2. Deploy the `frontend/` directory.
-3. Set the **Build Command** to `npm run build` and the **Output Directory** to `build`.
-
-> ⚠️ **HTTPS is required for WebRTC** in production. Ensure your backend is served over `https://` and your WebSocket connection uses `wss://`.
+| Location | Command | Action |
+| --- | --- | --- |
+| Backend | `npm run dev` | Starts server with Nodemon |
+| Frontend | `npm run dev` | Launches React dev server |
+| Frontend | `npm run build` | Compiles for production |
 
 ---
 
 ## 🔮 Future Improvements
 
-- [ ] **Screen Sharing** — Allow participants to share their screen during a meeting
-- [ ] **Meeting Scheduling** — Calendar integration to schedule and send meeting invites
-- [ ] **Recording** — Record meetings and save them to cloud storage
-- [ ] **AI Transcription & Summarization** — Auto-generate meeting transcripts and summaries using AI
-- [ ] **Breakout Rooms** — Split participants into smaller sub-groups
-- [ ] **Whiteboard** — Collaborative real-time drawing canvas
-- [ ] **Mobile App** — React Native companion app for iOS and Android
 - [ ] **Virtual Backgrounds** — Background blur and custom virtual backgrounds
 - [ ] **End-to-End Encryption** — Encrypt media streams for enhanced privacy
 - [ ] **Reactions & Raise Hand** — Quick emoji reactions and a raise-hand feature
