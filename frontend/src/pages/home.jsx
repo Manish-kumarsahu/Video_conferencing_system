@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useState } from "react";
 import withAuth from "../utils/withAuth";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
@@ -6,23 +6,15 @@ import { Button, IconButton, TextField, Tooltip, Chip } from "@mui/material";
 import RestoreIcon from "@mui/icons-material/Restore";
 import LogoutIcon from "@mui/icons-material/Logout";
 import VideoCallIcon from "@mui/icons-material/VideoCall";
-import { AuthContext } from "../contexts/AuthContext";
 
 function HomeComponent() {
   const navigate = useNavigate();
   const [meetingCode, setMeetingCode] = useState("");
-  const { addToUserHistory } = useContext(AuthContext);
+  // addToUserHistory removed — history is saved in VideoMeet on meeting end
 
-  const handleJoinVideoCall = async () => {
+  const handleJoinVideoCall = () => {
     if (!meetingCode.trim()) return;
-    try {
-      await addToUserHistory(meetingCode);
-      navigate(`/${meetingCode}`);
-    } catch (err) {
-      console.error("Failed to join video call:", err);
-      // Fallback UI or simple alert
-      alert("Failed to join meeting. Please try again.");
-    }
+    navigate(`/${meetingCode}`);
   };
 
   const handleKeyDown = (e) => {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addToHistory, getUserHistory, login, register } from "../controllers/user.controller.js";
+import { addToHistory, getUserHistory, login, register, getMeetingById, deleteMeeting, deleteMeetings } from "../controllers/user.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 
@@ -17,5 +17,8 @@ router.route("/login").post(authLimiter, login)
 router.route("/register").post(authLimiter, register)
 router.route("/add_to_activity").post(authMiddleware, addToHistory)
 router.route("/get_all_activity").get(authMiddleware, getUserHistory)
+router.route("/meeting/delete").post(authMiddleware, deleteMeetings)
+router.route("/meeting/:meetingCode").get(authMiddleware, getMeetingById)
+router.route("/meeting/:id").delete(authMiddleware, deleteMeeting)
 
 export default router;

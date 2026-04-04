@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef, useCallback, useContext } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { AuthContext } from '../contexts/AuthContext';
 import { TextField, Button, Tooltip } from '@mui/material';
 import styles from '../styles/videoComponent.module.css';
 
@@ -23,6 +24,25 @@ export default function VideoMeetComponent() {
 
     const [askForUsername, setAskForUsername] = useState(true);
     const [username, setUsername] = useState("");
+
+    const [meetingTimer, setMeetingTimer] = useState(0);
+
+    useEffect(() => {
+        let interval = null;
+        if (!askForUsername) {
+            interval = setInterval(() => setMeetingTimer(p => p + 1), 1000);
+        }
+        return () => interval && clearInterval(interval);
+    }, [askForUsername]);
+
+    const formatTime = (secs) => {
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        const s = secs % 60;
+        return h > 0 
+            ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+            : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
 
     // ── Lobby device toggle states ──
     const [cameraOn, setCameraOn] = useState(true);
@@ -54,7 +74,9 @@ export default function VideoMeetComponent() {
         kickUser, muteAll, stopVideoAll, endMeetingAll, getSocket
     } = useWebRTC(createBlackSilence, forceDisableAudio, forceDisableVideo, handleMeetingEnded);
 
-    const { captionsOn, toggleCaptions, captions } = useCaptions(getSocket(), username);
+    const { captionsOn, toggleCaptions, captions, transcript } = useCaptions(getSocket(), username);
+    const { endMeeting, addToUserHistory } = useContext(AuthContext);
+    const { url: meetingCode } = useParams();
 
     // ── Lobby: start preview stream on mount ──
     useEffect(() => {
@@ -148,6 +170,22 @@ export default function VideoMeetComponent() {
         stopAllTracks();
         navigate("/home");
     }, [stopAllTracks, navigate]);
+
+    const handleEndMeeting = useCallback(async () => {
+        // Stop media immediately so UI feels responsive
+        stopAllTracks();
+
+        // Backend fetches transcript from DB, calls Gemini, saves to meetings collection
+        try {
+            await endMeeting(meetingCode);
+            // Link the meeting to the current user's history
+            await addToUserHistory(meetingCode);
+        } catch (err) {
+            console.error("[handleEndMeeting]", err);
+        }
+
+        navigate("/history");
+    }, [endMeeting, addToUserHistory, meetingCode, stopAllTracks, navigate]);
 
     const handleSendMessage = useCallback((messageText) => {
         sendMessage(messageText, username);
@@ -261,7 +299,31 @@ export default function VideoMeetComponent() {
 
     return (
         <div className={styles.meetLayout}>
-            <div className={`${styles.mainVideoArea} ${activeTab ? styles.withSidebar : ''}`}>
+            <div className={`${styles.mainVideoArea} ${activeTab ? styles.withSidebar : ''} relative`}>
+                
+                {/* ── Bottom Left Overlay: Meeting ID ── */}
+                <div className="absolute bottom-4 left-4 z-50 flex gap-2 text-white">
+                    <Tooltip title="Click to copy Meeting Code" placement="top">
+                        <div 
+                            className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-semibold border border-white/10 shadow-lg cursor-pointer hover:bg-black/80 hover:border-white/20 transition-all" 
+                            onClick={() => {navigator.clipboard.writeText(meetingCode); alert("Meeting Code copied!");}}
+                        >
+                            <span className="text-gray-400 font-medium">ID:</span>
+                            <span className="tracking-widest">{meetingCode}</span>
+                        </div>
+                    </Tooltip>
+                </div>
+
+                {/* ── Bottom Right Overlay: Timer ── */}
+                <div className="absolute bottom-4 right-4 z-50 flex gap-2 text-white">
+                    <Tooltip title="Meeting Duration" placement="top">
+                        <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2.5 text-sm font-semibold border border-white/10 shadow-lg">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]"></span>
+                            <span className="tracking-wider w-[42px] text-center">{formatTime(meetingTimer)}</span>
+                        </div>
+                    </Tooltip>
+                </div>
+
                 <div className={styles.videoGridWrapper}>
                     <VideoGrid
                         videos={videos}
@@ -283,6 +345,7 @@ export default function VideoMeetComponent() {
                     screenAvailable={screenAvailable}
                     captionsOn={captionsOn}
                     newMessages={newMessages}
+                    participantsCount={participants.length}
                     onToggleVideo={toggleVideo}
                     onToggleAudio={toggleAudio}
                     onToggleScreen={toggleScreen}
@@ -290,7 +353,7 @@ export default function VideoMeetComponent() {
                     onToggleChat={handleToggleChat}
                     onTogglePeople={handleTogglePeople}
                     onLeaveCall={handleLeaveCall}
-                    onEndMeetingAll={endMeetingAll}
+                    onEndMeetingAll={() => { endMeetingAll(); handleEndMeeting(); }}
                     isHost={participants.find(u => u.socketId === socketId)?.role === "host"}
                     activeTab={activeTab}
                 />

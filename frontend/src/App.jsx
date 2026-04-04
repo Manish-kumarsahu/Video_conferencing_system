@@ -8,6 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 const VideoMeetComponent = lazy(() => import("./pages/VideoMeet"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const History = lazy(() => import("./pages/history"));
+const MeetingTranscript = lazy(() => import("./pages/MeetingTranscript"));
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
   
               <Route path="/home" element={<Dashboard />} />
               <Route path="/history" element={<History />} />
+              <Route path="/meeting/:meetingCode" element={<MeetingTranscript />} />
               <Route path="/:url" element={<VideoMeetComponent />} />
             </Routes>
           </Suspense>

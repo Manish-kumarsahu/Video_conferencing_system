@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import { connectToSocket } from "./controllers/socketManager.js";
 import cors from "cors";
 import userRoutes from "./routes/users.routes.js";
+import meetingRoutes from "./routes/meeting.routes.js";
 
 const app = express();
 const server = createServer(app);
@@ -17,15 +18,17 @@ app.set("port", PORT);
 // ── Middleware ─────────────────────────────────────────
 app.use(cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "DELETE", "PATCH"],
     credentials: true,
 }));
 
-app.use(express.json({ limit: "40kb" }));
-app.use(express.urlencoded({ limit: "40kb", extended: true }));
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ limit: "100kb", extended: true }));
 
 // ── Routes ─────────────────────────────────────────────
 app.use("/api/v1/users", userRoutes);
+app.use("/api", meetingRoutes);
+
 
 // ── Health check ───────────────────────────────────────
 app.get("/health", (req, res) => {

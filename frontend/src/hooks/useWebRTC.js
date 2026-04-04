@@ -114,7 +114,7 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
     }, []);
 
     const sendMessage = useCallback((messageText, username) => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         const msg = { sender: username, data: messageText, senderId: socketIdRef.current };
         socketRef.current?.emit('send-message', { roomId, message: msg });
         addMessage(msg);
@@ -124,22 +124,22 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
 
     // ── Host Controls ─────────────────────────────────
     const kickUser = useCallback((targetId) => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('kick-user', roomId, targetId);
     }, []);
 
     const muteAll = useCallback(() => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('mute-all', roomId);
     }, []);
 
     const stopVideoAll = useCallback(() => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('stop-video-all', roomId);
     }, []);
 
     const endMeetingAll = useCallback(() => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('end-meeting-all', roomId);
     }, []);
 
@@ -153,7 +153,7 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
         socketRef.current.on('signal', gotMessageFromServer);
 
         socketRef.current.on('connect', () => {
-            const roomId = window.location.pathname;
+            const roomId = window.location.pathname.split('/').pop();
             socketRef.current.emit('join-room', roomId, username);
             socketIdRef.current = socketRef.current.id;
 

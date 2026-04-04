@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 export default function useCaptions(socket, username) {
     const [captionsOn, setCaptionsOn] = useState(false);
     const [captions, setCaptions] = useState([]);
+    const [transcript, setTranscript] = useState([]); // final-only captions for summarization
     const audioContextRef = useRef(null);
     const processorRef = useRef(null);
     const sourceRef = useRef(null);
@@ -22,6 +23,8 @@ export default function useCaptions(socket, username) {
                 const lastIdx = newCaptions.length - 1;
 
                 if (data.isFinal) {
+                    // Accumulate final captions for meeting-end summarization
+                    setTranscript(prev => [...prev, data]);
                     // It's final, add it as a new permanent caption line
                     // or replace the interim one if it matches speaker
                     if (newCaptions[lastIdx] && !newCaptions[lastIdx].isFinal && newCaptions[lastIdx].socketId === data.socketId) {
@@ -96,7 +99,7 @@ export default function useCaptions(socket, username) {
             sourceRef.current.connect(processorRef.current);
             processorRef.current.connect(audioContextRef.current.destination);
 
-            const roomId = window.location.pathname;
+            const roomId = window.location.pathname.split('/').pop();
             console.log("[useCaptions] Emitting start-captions for room:", roomId);
             socket.emit('start-captions', roomId, username);
             setCaptionsOn(true);
@@ -134,6 +137,7 @@ export default function useCaptions(socket, username) {
     return {
         captionsOn,
         toggleCaptions,
-        captions
+        captions,
+        transcript,
     };
 }

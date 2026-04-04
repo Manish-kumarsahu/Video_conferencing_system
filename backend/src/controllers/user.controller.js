@@ -3,6 +3,7 @@ import { User } from "../models/user.model.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { Meeting } from "../models/meeting.model.js";
+import { Transcript } from "../models/transcript.model.js";
 
 // ── Login ──────────────────────────────────────────────
 const login = async (req, res) => {
@@ -111,7 +112,7 @@ const getUserHistory = async (req, res) => {
 
 // ── Add to History ─────────────────────────────────────
 const addToHistory = async (req, res) => {
-    let { meeting_code, meetingCode, meetingId, participants, summary } = req.body;
+    let { meeting_code, meetingCode, meetingId, participants, summary, transcript } = req.body;
     
     // Fallback if client or tests provide alternative parameter names
     if (!meeting_code && meetingCode) meeting_code = meetingCode;
@@ -121,11 +122,30 @@ const addToHistory = async (req, res) => {
         return res.status(httpStatus.BAD_REQUEST).json({ message: "Meeting code is required" });
     }
 
+    const code = meeting_code.trim();
+
     try {
+        // If transcript not provided by client, fetch from transcripts collection
+        if (!transcript || !transcript.trim()) {
+            const transcriptDocs = await Transcript.find({ meetingCode: code }).sort({ timestamp: 1 });
+            if (transcriptDocs.length > 0) {
+                transcript = transcriptDocs
+                    .map(t => `${t.speakerName || "Unknown"}: ${t.text}`)
+                    .join("\n");
+            }
+        }
+
+        // If summary not provided, check if a meeting record already has one (saved by /api/summarize-meeting)
+        if (!summary || !summary.trim()) {
+            const existing = await Meeting.findOne({ meetingCode: code, summary: { $ne: "" } }).sort({ date: -1 });
+            if (existing) summary = existing.summary;
+        }
+
         const newMeeting = new Meeting({
             user_id: req.user._id,
-            meetingCode: meeting_code.trim(),
+            meetingCode: code,
             participants: participants || [],
+            transcript: transcript || "",
             summary: summary || "",
         });
 
@@ -138,4 +158,71 @@ const addToHistory = async (req, res) => {
     }
 };
 
-export { login, register, getUserHistory, addToHistory };
+// ── Get Single Meeting by Code ──────────────────────────
+const getMeetingById = async (req, res) => {
+    const { meetingCode } = req.params;
+    try {
+        const code = meetingCode.trim();
+
+        // First: find the user's own record (may have been saved by addToHistory)
+        let meeting = await Meeting.findOne({
+            user_id: req.user._id,
+            meetingCode: code,
+        }).sort({ date: -1 });
+
+        // Fallback: if user record has no content, find any record for this code with content
+        if (!meeting || (!meeting.transcript && !meeting.summary)) {
+            const richer = await Meeting.findOne({
+                meetingCode: code,
+                $or: [
+                    { transcript: { $ne: "" } },
+                    { summary: { $ne: "" } },
+                ],
+            }).sort({ date: -1 });
+            if (richer) meeting = richer;
+        }
+
+        if (!meeting) {
+            return res.status(httpStatus.NOT_FOUND).json({ message: "Meeting not found" });
+        }
+
+        const meetingObj = meeting.toObject();
+        meetingObj.meetingId = meetingObj.meetingCode;
+        return res.status(httpStatus.OK).json(meetingObj);
+    } catch (e) {
+        console.error("[getMeetingById]", e);
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Could not fetch meeting" });
+    }
+};
+
+// ── Delete Single Meeting ──────────────────────────────
+const deleteMeeting = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await Meeting.findOneAndDelete({ _id: id, user_id: req.user._id });
+        if (!result) {
+            return res.status(httpStatus.NOT_FOUND).json({ message: "Meeting not found" });
+        }
+        return res.status(httpStatus.OK).json({ message: "Meeting deleted" });
+    } catch (e) {
+        console.error("[deleteMeeting]", e);
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Could not delete meeting" });
+    }
+};
+
+// ── Bulk Delete Meetings ────────────────────────────────
+const deleteMeetings = async (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(httpStatus.BAD_REQUEST).json({ message: "ids array is required" });
+    }
+    try {
+        const result = await Meeting.deleteMany({ _id: { $in: ids }, user_id: req.user._id });
+        return res.status(httpStatus.OK).json({ message: `Deleted ${result.deletedCount} meeting(s)` });
+    } catch (e) {
+        console.error("[deleteMeetings]", e);
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Could not delete meetings" });
+    }
+};
+
+export { login, register, getUserHistory, addToHistory, getMeetingById, deleteMeeting, deleteMeetings };

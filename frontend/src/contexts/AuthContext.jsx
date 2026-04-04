@@ -11,7 +11,20 @@ const client = axios.create({
     baseURL: `${server}/api/v1/users`,
 });
 
+// Separate client for /api routes (no /v1/users prefix)
+const apiClient = axios.create({
+    baseURL: `${server}/api`,
+});
+
 client.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+apiClient.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -45,8 +58,35 @@ export const AuthProvider = ({ children }) => {
         return request.data;
     };
 
-    const addToUserHistory = async (meetingCode) => {
-        await client.post("/add_to_activity", { meeting_code: meetingCode });
+    const addToUserHistory = async (meetingCode, transcript = "", summary = "") => {
+        await client.post("/add_to_activity", { meeting_code: meetingCode, transcript, summary });
+    };
+
+    // ── End Meeting: fetch transcript from DB, summarize via Gemini, save to meetings ──
+    const endMeeting = async (meetingCode) => {
+        try {
+            const res = await apiClient.post("/summarize-meeting", { meetingCode });
+            return res.data; // { summary, transcript, message }
+        } catch (err) {
+            console.error("[endMeeting]", err);
+            return { summary: "", transcript: "" };
+        }
+    };
+
+    // ── Fetch single meeting ──────────────────────────────────────────────────
+    const getMeetingDetails = async (meetingCode) => {
+        const res = await client.get(`/meeting/${meetingCode}`);
+        return res.data;
+    };
+
+    // ── Delete single meeting ─────────────────────────────────
+    const deleteMeeting = async (id) => {
+        await client.delete(`/meeting/${id}`);
+    };
+
+    // ── Bulk delete meetings ─────────────────────────────────
+    const deleteMeetings = async (ids) => {
+        await client.post("/meeting/delete", { ids });
     };
 
     const value = {
@@ -54,6 +94,10 @@ export const AuthProvider = ({ children }) => {
         handleLogin,
         getHistoryOfUser,
         addToUserHistory,
+        endMeeting,
+        getMeetingDetails,
+        deleteMeeting,
+        deleteMeetings,
     };
 
     return (
