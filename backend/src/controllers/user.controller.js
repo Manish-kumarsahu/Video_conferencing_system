@@ -128,6 +128,7 @@ const addToHistory = async (req, res) => {
         // If transcript not provided by client, fetch from transcripts collection
         if (!transcript || !transcript.trim()) {
             const transcriptDocs = await Transcript.find({ meetingCode: code }).sort({ timestamp: 1 });
+            console.log(`[addToHistory] Fetched ${transcriptDocs.length} transcript docs for code: ${code}`);
             if (transcriptDocs.length > 0) {
                 transcript = transcriptDocs
                     .map(t => `${t.speakerName || "Unknown"}: ${t.text}`)
@@ -137,8 +138,14 @@ const addToHistory = async (req, res) => {
 
         // If summary not provided, check if a meeting record already has one (saved by /api/summarize-meeting)
         if (!summary || !summary.trim()) {
+            console.log(`[addToHistory] No summary from client, looking up existing for code: ${code}`);
             const existing = await Meeting.findOne({ meetingCode: code, summary: { $ne: "" } }).sort({ date: -1 });
-            if (existing) summary = existing.summary;
+            if (existing) {
+                summary = existing.summary;
+                console.log(`[addToHistory] Found existing summary, length: ${summary.length}`);
+            } else {
+                console.log(`[addToHistory] No existing summary found in DB for code: ${code}`);
+            }
         }
 
         const newMeeting = new Meeting({
@@ -150,6 +157,7 @@ const addToHistory = async (req, res) => {
         });
 
         await newMeeting.save();
+        console.log(`[addToHistory] Saved meeting for user ${req.user._id}, summary_len=${(summary || '').length}, transcript_len=${(transcript || '').length}`);
 
         return res.status(httpStatus.CREATED).json({ message: "Added to history" });
     } catch (e) {
@@ -170,16 +178,21 @@ const getMeetingById = async (req, res) => {
             meetingCode: code,
         }).sort({ date: -1 });
 
-        // Fallback: if user record has no content, find any record for this code with content
-        if (!meeting || (!meeting.transcript && !meeting.summary)) {
+        // Fallback: if user record is missing summary, try to find a richer record
+        if (!meeting || !meeting.summary) {
             const richer = await Meeting.findOne({
                 meetingCode: code,
-                $or: [
-                    { transcript: { $ne: "" } },
-                    { summary: { $ne: "" } },
-                ],
+                summary: { $ne: "" },
             }).sort({ date: -1 });
-            if (richer) meeting = richer;
+            if (richer) {
+                // Merge: keep user's doc but pull in the summary (and transcript if missing)
+                if (meeting) {
+                    meeting.summary = richer.summary;
+                    if (!meeting.transcript) meeting.transcript = richer.transcript;
+                } else {
+                    meeting = richer;
+                }
+            }
         }
 
         if (!meeting) {

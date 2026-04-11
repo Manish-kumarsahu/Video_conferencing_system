@@ -24,25 +24,30 @@ export default function VideoMeetComponent() {
 
     const [askForUsername, setAskForUsername] = useState(true);
     const [username, setUsername] = useState("");
+    const isEndingMeetingRef = useRef(false); // prevents host from being navigated away by their own meeting-ended event
 
-    const [meetingTimer, setMeetingTimer] = useState(0);
+    const [meetingTimer, setMeetingTimer] = useState('00:00');
+    const timerStartRef = useRef(null);
 
     useEffect(() => {
-        let interval = null;
         if (!askForUsername) {
-            interval = setInterval(() => setMeetingTimer(p => p + 1), 1000);
+            timerStartRef.current = Date.now();
+            const tick = () => {
+                const elapsed = Math.floor((Date.now() - timerStartRef.current) / 1000);
+                const h = Math.floor(elapsed / 3600);
+                const m = Math.floor((elapsed % 3600) / 60);
+                const s = elapsed % 60;
+                setMeetingTimer(
+                    h > 0
+                        ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+                        : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+                );
+            };
+            tick();
+            const id = setInterval(tick, 1000);
+            return () => clearInterval(id);
         }
-        return () => interval && clearInterval(interval);
     }, [askForUsername]);
-
-    const formatTime = (secs) => {
-        const h = Math.floor(secs / 3600);
-        const m = Math.floor((secs % 3600) / 60);
-        const s = secs % 60;
-        return h > 0 
-            ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-            : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
 
     // ── Lobby device toggle states ──
     const [cameraOn, setCameraOn] = useState(true);
@@ -61,6 +66,8 @@ export default function VideoMeetComponent() {
     } = useMediaStream();
 
     const handleMeetingEnded = useCallback(() => {
+        // If we (the host) initiated the end, skip — handleEndMeeting handles navigation
+        if (isEndingMeetingRef.current) return;
         alert("The host has ended the meeting for everyone.");
         stopAllTracks();
         navigate("/home");
@@ -69,6 +76,7 @@ export default function VideoMeetComponent() {
     const {
         videos, messages, newMessages,
         participants, socketId,
+        isSpeaking, mediaStatus, emitMediaStatus,
         sendMessage, resetNewMessages,
         connectToSocket, renegotiateAll,
         kickUser, muteAll, stopVideoAll, endMeetingAll, getSocket
@@ -77,6 +85,13 @@ export default function VideoMeetComponent() {
     const { captionsOn, toggleCaptions, captions, transcript } = useCaptions(getSocket(), username);
     const { endMeeting, addToUserHistory } = useContext(AuthContext);
     const { url: meetingCode } = useParams();
+
+    // ── Emit media status whenever audio/video toggles ──
+    useEffect(() => {
+        if (socketId && !askForUsername) {
+            emitMediaStatus(!!audio, !!video);
+        }
+    }, [audio, video, socketId, askForUsername, emitMediaStatus]);
 
     // ── Lobby: start preview stream on mount ──
     useEffect(() => {
@@ -166,20 +181,31 @@ export default function VideoMeetComponent() {
         connectToSocket(username);
     }, [startMedia, connectToSocket, username, lobbyStream, cameraOn, micOn]);
 
-    const handleLeaveCall = useCallback(() => {
+    const handleLeaveCall = useCallback(async () => {
         stopAllTracks();
+
+        // Save this meeting to the user's history (transcript/summary fetched from DB by backend)
+        try {
+            await addToUserHistory(meetingCode);
+        } catch (err) {
+            console.error("[handleLeaveCall] Could not save to history:", err);
+        }
+
         navigate("/home");
-    }, [stopAllTracks, navigate]);
+    }, [stopAllTracks, addToUserHistory, meetingCode, navigate]);
 
     const handleEndMeeting = useCallback(async () => {
+        // Mark that the host is ending — prevents handleMeetingEnded from navigating away
+        isEndingMeetingRef.current = true;
+
         // Stop media immediately so UI feels responsive
         stopAllTracks();
 
         // Backend fetches transcript from DB, calls Gemini, saves to meetings collection
         try {
-            await endMeeting(meetingCode);
-            // Link the meeting to the current user's history
-            await addToUserHistory(meetingCode);
+            const result = await endMeeting(meetingCode);
+            // Pass transcript & summary directly — avoids DB lookup race condition
+            await addToUserHistory(meetingCode, result.transcript || "", result.summary || "");
         } catch (err) {
             console.error("[handleEndMeeting]", err);
         }
@@ -254,7 +280,7 @@ export default function VideoMeetComponent() {
                         size="medium"
                         sx={{ minWidth: 220 }}
                     />
-                    
+
                     <Button
                         variant="contained"
                         color="primary"
@@ -300,29 +326,8 @@ export default function VideoMeetComponent() {
     return (
         <div className={styles.meetLayout}>
             <div className={`${styles.mainVideoArea} ${activeTab ? styles.withSidebar : ''} relative`}>
-                
-                {/* ── Bottom Left Overlay: Meeting ID ── */}
-                <div className="absolute bottom-4 left-4 z-50 flex gap-2 text-white">
-                    <Tooltip title="Click to copy Meeting Code" placement="top">
-                        <div 
-                            className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-semibold border border-white/10 shadow-lg cursor-pointer hover:bg-black/80 hover:border-white/20 transition-all" 
-                            onClick={() => {navigator.clipboard.writeText(meetingCode); alert("Meeting Code copied!");}}
-                        >
-                            <span className="text-gray-400 font-medium">ID:</span>
-                            <span className="tracking-widest">{meetingCode}</span>
-                        </div>
-                    </Tooltip>
-                </div>
 
-                {/* ── Bottom Right Overlay: Timer ── */}
-                <div className="absolute bottom-4 right-4 z-50 flex gap-2 text-white">
-                    <Tooltip title="Meeting Duration" placement="top">
-                        <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2.5 text-sm font-semibold border border-white/10 shadow-lg">
-                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]"></span>
-                            <span className="tracking-wider w-[42px] text-center">{formatTime(meetingTimer)}</span>
-                        </div>
-                    </Tooltip>
-                </div>
+
 
                 <div className={styles.videoGridWrapper}>
                     <VideoGrid
@@ -333,6 +338,7 @@ export default function VideoMeetComponent() {
                         localUsername={username}
                         participants={participants}
                         socketId={socketId}
+                        mediaStatus={mediaStatus}
                     />
                 </div>
 
@@ -346,6 +352,8 @@ export default function VideoMeetComponent() {
                     captionsOn={captionsOn}
                     newMessages={newMessages}
                     participantsCount={participants.length}
+                    meetingCode={meetingCode}
+                    meetingTimer={meetingTimer}
                     onToggleVideo={toggleVideo}
                     onToggleAudio={toggleAudio}
                     onToggleScreen={toggleScreen}
@@ -379,37 +387,68 @@ export default function VideoMeetComponent() {
                                 <button className={styles.closeBtn} onClick={() => setActiveTab(null)}>✕</button>
                             </div>
                             <div className={styles.participantsList}>
-                                {participants.map(p => (
-                                    <div key={p.socketId} className={styles.participantItem}>
-                                        <div className={styles.participantAvatar}>
-                                            {p.username.charAt(0).toUpperCase()}
+                                {participants.map(p => {
+                                    const pStatus = mediaStatus?.[p.socketId] || {};
+                                    const pMicOn = p.socketId === socketId ? !!audio : (pStatus.micOn !== undefined ? pStatus.micOn : true);
+                                    const pVideoOn = p.socketId === socketId ? !!video : (pStatus.videoOn !== undefined ? pStatus.videoOn : true);
+                                    const pSpeaking = pStatus.isSpeaking || false;
+
+                                    return (
+                                        <div
+                                            key={p.socketId}
+                                            className={styles.participantItem}
+                                            style={pSpeaking ? { background: 'rgba(52,211,153,0.08)', borderLeft: '3px solid #34d399' } : {}}
+                                        >
+                                            {/* Speaking indicator dot */}
+                                            {pSpeaking && <div className={styles.speakingDot} />}
+
+                                            <div className={styles.participantAvatar}>
+                                                {p.username.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className={styles.participantInfo}>
+                                                <span className={styles.participantName}>
+                                                    {p.username} {p.socketId === socketId ? '(You)' : ''}
+                                                    {p.role === 'host' && (
+                                                        <span className={styles.hostBadge}>Host</span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className={styles.participantAction}>
+                                                {/* Kick button — host only */}
+                                                {participants.find(u => u.socketId === socketId)?.role === 'host' && p.socketId !== socketId && (
+                                                    <Button
+                                                        size="small"
+                                                        color="error"
+                                                        onClick={() => kickUser(p.socketId)}
+                                                        sx={{ mr: 1, textTransform: 'none', fontSize: '0.75rem' }}
+                                                    >
+                                                        Kick
+                                                    </Button>
+                                                )}
+
+                                                {/* Video status */}
+                                                <Tooltip title={pVideoOn ? 'Camera On' : 'Camera Off'}>
+                                                    <span style={{ display: 'inline-flex', marginRight: 4 }}>
+                                                        {pVideoOn
+                                                            ? <VideocamIcon sx={{ fontSize: '1.2rem', color: '#fff' }} />
+                                                            : <VideocamOffIcon sx={{ fontSize: '1.2rem', color: '#ea4335' }} />
+                                                        }
+                                                    </span>
+                                                </Tooltip>
+
+                                                {/* Mic status */}
+                                                <Tooltip title={pMicOn ? 'Mic On' : 'Mic Off'}>
+                                                    <span style={{ display: 'inline-flex' }}>
+                                                        {pMicOn
+                                                            ? <MicIcon sx={{ fontSize: '1.2rem', color: pSpeaking ? '#34d399' : '#fff' }} />
+                                                            : <MicOffIcon sx={{ fontSize: '1.2rem', color: '#ea4335' }} />
+                                                        }
+                                                    </span>
+                                                </Tooltip>
+                                            </div>
                                         </div>
-                                        <div className={styles.participantInfo}>
-                                            <span className={styles.participantName}>
-                                                {p.username} {p.socketId === socketId ? "(You)" : ""}
-                                            </span>
-                                        </div>
-                                        <div className={styles.participantAction}>
-                                            {/* Show Kick button only if I am host and this is not me */}
-                                            {participants.find(u => u.socketId === socketId)?.role === "host" && p.socketId !== socketId && (
-                                                <Button
-                                                    size="small"
-                                                    color="error"
-                                                    onClick={() => kickUser(p.socketId)}
-                                                    sx={{ mr: 1, textTransform: 'none', fontSize: '0.75rem' }}
-                                                >
-                                                    Kick
-                                                </Button>
-                                            )}
-                                            {/* Mic icon logic (simplified for now as we don't have all remote mic states) */}
-                                            {p.socketId === socketId ? (
-                                                audio ? <MicIcon sx={{ fontSize: '1.2rem', color: '#fff' }} /> : <MicOffIcon sx={{ fontSize: '1.2rem', color: '#ea4335' }} />
-                                            ) : (
-                                                <MicIcon sx={{ fontSize: '1.2rem', color: '#fff' }} />
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

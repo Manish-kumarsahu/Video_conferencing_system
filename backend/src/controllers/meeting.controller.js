@@ -56,7 +56,8 @@ export const summarizeMeeting = async (req, res) => {
             : fullTranscript;
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        // Use gemini-2.5-flash — current stable free-tier model
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `Analyze the following meeting transcript and first identify the type of meeting:
 - Formal (project, business, academic)
@@ -88,9 +89,24 @@ Rules:
 Transcript:
 ${trimmed}`;
 
+        console.log("[summarizeMeeting] Calling Gemini for meetingCode:", code, "transcript length:", trimmed.length);
         const result = await model.generateContent(prompt);
-        const response = await result.response;
-        summary = response.text().trim();
+        const response = result.response;
+
+        // Try response.text() first, then fall back to extracting from candidates
+        try {
+            summary = response.text().trim();
+        } catch (textErr) {
+            console.warn("[summarizeMeeting] response.text() failed, extracting from candidates:", textErr.message);
+            const parts = response?.candidates?.[0]?.content?.parts || [];
+            summary = parts
+                .filter(p => !p.thought && p.text)
+                .map(p => p.text)
+                .join("\n")
+                .trim();
+        }
+
+        console.log("[summarizeMeeting] Summary generated, length:", summary.length);
     } catch (err) {
         console.error("[summarizeMeeting] Gemini error:", err?.message || err);
         summary = ""; // non-fatal — still save the transcript

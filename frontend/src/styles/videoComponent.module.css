@@ -32,8 +32,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding-bottom: 90px;
-  /* Space for controls */
+  padding-bottom: 80px;
+  /* Space for controls bar */
 }
 
 /* ── Video Grid Layouts ── */
@@ -66,6 +66,83 @@
 .videoWrapper:hover {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
   transform: translateY(-2px);
+}
+
+/* ── Active Speaker Glow ── */
+.speakingGlow {
+  border: 2px solid rgba(52, 211, 153, 0.8) !important;
+  box-shadow:
+    0 0 12px rgba(52, 211, 153, 0.4),
+    0 0 30px rgba(52, 211, 153, 0.15),
+    inset 0 0 8px rgba(52, 211, 153, 0.05) !important;
+  animation: speakerPulse 2s ease-in-out infinite;
+}
+
+@keyframes speakerPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 12px rgba(52, 211, 153, 0.4),
+      0 0 30px rgba(52, 211, 153, 0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 18px rgba(52, 211, 153, 0.6),
+      0 0 45px rgba(52, 211, 153, 0.25);
+  }
+}
+
+/* Mic icon glow when speaking */
+.micSpeaking {
+  animation: micGlowPulse 1.5s ease-in-out infinite;
+  border: 1px solid rgba(52, 211, 153, 0.4);
+}
+
+.micSpeaking svg {
+  color: #34d399 !important;
+}
+
+@keyframes micGlowPulse {
+  0%, 100% { 
+    box-shadow: 0 0 4px rgba(52, 211, 153, 0.4);
+    background: rgba(52, 211, 153, 0.15);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(52, 211, 153, 0.85);
+    background: rgba(52, 211, 153, 0.35);
+  }
+}
+
+/* Speaking dot in participants panel */
+.speakingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.8);
+  animation: dotPulse 1.2s ease-in-out infinite;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.8); }
+}
+
+/* Muted status icon in video overlay */
+.micMuted {
+  color: #ea4335 !important;
+}
+
+.videoOffOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #1e293b;
+  z-index: 1;
 }
 
 .videoWrapper video {
@@ -189,30 +266,123 @@
   z-index: 1;
 }
 
-/* ── Controls Toolbar (Bottom) ── */
-.buttonContainers {
+/* ── Controls Bar (Bottom) — 3-section layout ── */
+.controlBar {
   position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: rgba(17, 24, 39, 0.85);
-  /* Gray 900 glass */
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 100px;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: rgba(17, 24, 39, 0.88);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 20;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* Left section: Meeting ID + Timer */
+.controlBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+
+.meetingInfoChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.04em;
+}
+
+.meetingInfoChip:hover {
+  background: rgba(124, 92, 252, 0.12);
+  border-color: rgba(124, 92, 252, 0.3);
+  color: #c4b5fd;
+}
+
+.meetingInfoCode {
+  opacity: 0.9;
+}
+
+.timerChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 0.06em;
+}
+
+.timerDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.timerText {
+  min-width: 44px;
+  text-align: center;
+}
+
+/* Center section: Media controls */
+.controlBarCenter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Right section: End call */
+.controlBarRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 200px;
+}
+
+@media (max-width: 768px) {
+  .controlBar {
+    padding: 10px 12px;
+  }
+
+  .controlBarLeft {
+    min-width: auto;
+  }
+
+  .meetingInfoChip {
+    display: none;
+  }
+
+  .controlBarRight {
+    min-width: auto;
+  }
 }
 
 @media (max-width: 600px) {
-  .buttonContainers {
-    width: 90%;
-    justify-content: space-around;
-    padding: 8px;
+  .controlBarCenter {
     gap: 4px;
   }
 }

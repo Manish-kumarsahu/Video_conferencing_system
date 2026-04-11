@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useLocation } from "react-router-dom";
 import {
   Avatar, Button, TextField, Box, Typography,
   Tabs, Tab, Snackbar, Alert, InputAdornment, IconButton as MuiIconButton,
@@ -10,12 +11,13 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { AuthContext } from "../contexts/AuthContext";
 
 export default function Authentication() {
+  const location = useLocation();
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [name, setName] = React.useState("");
   const [error, setError] = React.useState("");
   const [message, setMessage] = React.useState("");
-  const [formState, setFormState] = React.useState(0);
+  const [formState, setFormState] = React.useState(location.state?.mode === "register" ? 1 : 0);
   const [open, setOpen] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);

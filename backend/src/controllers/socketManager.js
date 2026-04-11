@@ -45,6 +45,15 @@ export const connectToSocket = (server) => {
             }
         });
 
+        // ── Media & Speaking Status Relay ────────────────
+        socket.on("media-status", ({ roomId, micOn, videoOn }) => {
+            socket.to(roomId).emit("media-status", { socketId: socket.id, micOn, videoOn });
+        });
+
+        socket.on("speaking-status", ({ roomId, isSpeaking }) => {
+            socket.to(roomId).emit("speaking-status", { socketId: socket.id, isSpeaking });
+        });
+
         // ── WebRTC signal relay ────────────────────────
         socket.on("signal", (toId, message) => {
             io.to(toId).emit("signal", socket.id, message);
