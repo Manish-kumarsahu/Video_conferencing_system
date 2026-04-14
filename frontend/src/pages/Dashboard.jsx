@@ -1,5 +1,6 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import withAuth from "../utils/withAuth";
+import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
 import {
@@ -28,6 +29,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [meetingCode, setMeetingCode] = useState("");
   // History is saved in VideoMeet on meeting end (not on join)
 
@@ -134,10 +136,7 @@ function Dashboard() {
             variant="outlined"
             size="small"
             startIcon={<LogoutIcon />}
-            onClick={() => {
-              localStorage.removeItem("token");
-              navigate("/auth");
-            }}
+            onClick={logout}
             sx={{
               borderRadius: "8px",
               color: "#ff6b6b",

@@ -1,24 +1,24 @@
 import 'dotenv/config';
 import express from "express";
 import { createServer } from "node:http";
-import { Server } from "socket.io";
-import mongoose from "mongoose";
-import { connectToSocket } from "./controllers/socketManager.js";
+import { connectDB } from "./config/db.js";
+import { connectToSocket } from "./services/socket.service.js";
 import cors from "cors";
 import userRoutes from "./routes/users.routes.js";
 import meetingRoutes from "./routes/meeting.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 
-const app = express();
+const app    = express();
 const server = createServer(app);
-const io = connectToSocket(server);
+const io     = connectToSocket(server);
 
 const PORT = process.env.PORT || 8000;
 app.set("port", PORT);
 
 // ── Middleware ─────────────────────────────────────────
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-    methods: ["GET", "POST", "DELETE", "PATCH"],
+    origin:      process.env.CORS_ORIGIN || "http://localhost:3000",
+    methods:     ["GET", "POST", "DELETE", "PATCH"],
     credentials: true,
 }));
 
@@ -26,9 +26,9 @@ app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ limit: "100kb", extended: true }));
 
 // ── Routes ─────────────────────────────────────────────
-app.use("/api/v1/users", userRoutes);
-app.use("/api", meetingRoutes);
-
+app.use("/api/auth",      authRoutes);      // JWT + OTP authentication
+app.use("/api/v1/users",  userRoutes);      // Protected user / meeting history routes
+app.use("/api",           meetingRoutes);   // Meeting summary / socket routes
 
 // ── Health check ───────────────────────────────────────
 app.get("/health", (req, res) => {
@@ -51,17 +51,10 @@ app.use((err, req, res, next) => {
 
 // ── Database + Server Start ────────────────────────────
 const start = async () => {
-    try {
-        const connection = await mongoose.connect(process.env.MONGODB_URI);
-        console.log(`✅ MongoDB connected: ${connection.connection.host}`);
-
-        server.listen(PORT, () => {
-            console.log(`🚀 Server listening on port ${PORT}`);
-        });
-    } catch (err) {
-        console.error("❌ Failed to connect to MongoDB:", err.message);
-        process.exit(1);
-    }
+    await connectDB();
+    server.listen(PORT, () => {
+        console.log(`🚀 Server listening on port ${PORT}`);
+    });
 };
 
 start();

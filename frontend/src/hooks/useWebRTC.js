@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import io from "socket.io-client";
-import server from '../environment';
+import { BASE_URL } from '../services/api';
 
 const peerConfigConnections = {
     iceServers: [
@@ -261,8 +261,7 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
         if (socketRef.current?.connected) return;
 
         const connections = connectionsRef.current;
-        socketRef.current = io(server);
-
+        socketRef.current = io(BASE_URL);
         socketRef.current.on('signal', gotMessageFromServer);
 
         socketRef.current.on('connect', () => {

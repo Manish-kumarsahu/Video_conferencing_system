@@ -1,24 +1,31 @@
-import { User } from "../models/user.model.js";
 import httpStatus from "http-status";
+import { verifyToken } from "../utils/jwt.js";
 
 const authMiddleware = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
+
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Authorization token required" });
+            return res
+                .status(httpStatus.UNAUTHORIZED)
+                .json({ message: "Authorization token required" });
         }
 
         const token = authHeader.split(" ")[1];
-        const user = await User.findOne({ token });
+        const payload = verifyToken(token);
 
-        if (!user) {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid or expired token" });
-        }
-
-        req.user = user;
+        req.user = { _id: payload.id };
         next();
+
     } catch (error) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: "Authentication failed" });
+        if (error.name === "TokenExpiredError") {
+            return res
+                .status(httpStatus.UNAUTHORIZED)
+                .json({ message: "Session expired. Please sign in again." });
+        }
+        return res
+            .status(httpStatus.UNAUTHORIZED)
+            .json({ message: "Invalid or expired token" });
     }
 };
 

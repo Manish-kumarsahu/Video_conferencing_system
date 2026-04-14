@@ -1,97 +1,148 @@
-import axios from "axios";
-import httpStatus from "http-status";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import server from "../environment";
+import { authAPI, userAPI } from "../services/api";
 
 export const AuthContext = createContext(null);
 
-// Axios client with base URL and auto-attach of Bearer token
-const client = axios.create({
-    baseURL: `${server}/api/v1/users`,
-});
-
-// Separate client for /api routes (no /v1/users prefix)
-const apiClient = axios.create({
-    baseURL: `${server}/api`,
-});
-
-client.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+// ── Decode JWT payload without a library ───────────────
+const decodeJWT = (token) => {
+    try {
+        const base64Url = token.split(".")[1];
+        const base64    = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const json      = atob(base64);
+        return JSON.parse(json);
+    } catch {
+        return null;
     }
-    return config;
-});
+};
 
-apiClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
+// ── Check if a JWT token is still valid ────────────────
+const isTokenValid = (token) => {
+    if (!token) return false;
+    const payload = decodeJWT(token);
+    if (!payload || !payload.exp) return false;
+    return payload.exp * 1000 > Date.now();
+};
 
 export const AuthProvider = ({ children }) => {
-    const router = useNavigate();
+    const navigate = useNavigate();
 
-    // ── Register ───────────────────────────────────────
-    const handleRegister = async (name, username, password) => {
-        const request = await client.post("/register", { name, username, password });
-        if (request.status === httpStatus.CREATED) {
-            return request.data.message;
+    // ── State ───────────────────────────────────────────
+    const [user, setUser] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("user")) || null; }
+        catch { return null; }
+    });
+
+    const isAuthenticated = Boolean(user) && isTokenValid(localStorage.getItem("token"));
+
+    // ── Persistent login: validate stored token on mount ──
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (token && !isTokenValid(token)) {
+            // Token expired — clear stale session
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setUser(null);
         }
+    }, []);
+
+    // ── Internal helper to persist session ─────────────
+    const persistSession = useCallback((token, userData) => {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(userData));
+        setUser(userData);
+    }, []);
+
+    // ── Auth Actions ────────────────────────────────────
+
+    /** Step 1: Send OTP to email */
+    const sendOTP = async (email) => {
+        const res = await authAPI.sendOTP(email);
+        return res.data;
     };
 
-    // ── Login ──────────────────────────────────────────
-    const handleLogin = async (username, password) => {
-        const request = await client.post("/login", { username, password });
-        if (request.status === httpStatus.OK) {
-            localStorage.setItem("token", request.data.token);
-            router("/home");
-        }
+    /** Step 2: Verify OTP */
+    const verifyOTP = async (email, otp) => {
+        const res = await authAPI.verifyOTP(email, otp);
+        return res.data;
     };
 
-    // ── History ────────────────────────────────────────
+    /** Step 3: Complete registration — auto-login on success */
+    const handleRegister = async (email, name, password) => {
+        const res = await authAPI.register(email, name, password);
+        if (res.data.token) {
+            persistSession(res.data.token, res.data.user);
+            navigate("/home");
+        }
+        return res.data;
+    };
+
+    /** Login with email + password */
+    const handleLogin = async (email, password) => {
+        const res = await authAPI.login(email, password);
+        if (res.data.token) {
+            persistSession(res.data.token, res.data.user);
+            navigate("/home");
+        }
+        return res.data;
+    };
+
+    /** Logout — clear token and redirect */
+    const logout = useCallback(() => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+        navigate("/auth");
+    }, [navigate]);
+
+    // ── Meeting / History Actions (unchanged API surface) ──
+
     const getHistoryOfUser = async () => {
-        const request = await client.get("/get_all_activity");
-        return request.data;
+        const res = await userAPI.getHistory();
+        return res.data;
     };
 
     const addToUserHistory = async (meetingCode, transcript = "", summary = "") => {
-        await client.post("/add_to_activity", { meeting_code: meetingCode, transcript, summary });
+        await userAPI.addToHistory(meetingCode, transcript, summary);
     };
 
-    // ── End Meeting: fetch transcript from DB, summarize via Gemini, save to meetings ──
     const endMeeting = async (meetingCode) => {
         try {
-            const res = await apiClient.post("/summarize-meeting", { meetingCode });
-            return res.data; // { summary, transcript, message }
+            const res = await userAPI.summarizeMeeting(meetingCode);
+            return res.data;
         } catch (err) {
             console.error("[endMeeting]", err);
             return { summary: "", transcript: "" };
         }
     };
 
-    // ── Fetch single meeting ──────────────────────────────────────────────────
     const getMeetingDetails = async (meetingCode) => {
-        const res = await client.get(`/meeting/${meetingCode}`);
+        const res = await userAPI.getMeeting(meetingCode);
         return res.data;
     };
 
-    // ── Delete single meeting ─────────────────────────────────
     const deleteMeeting = async (id) => {
-        await client.delete(`/meeting/${id}`);
+        await userAPI.deleteMeeting(id);
     };
 
-    // ── Bulk delete meetings ─────────────────────────────────
     const deleteMeetings = async (ids) => {
-        await client.post("/meeting/delete", { ids });
+        await userAPI.deleteMeetings(ids);
     };
 
+    // ── Context Value ───────────────────────────────────
     const value = {
+        // State
+        user,
+        isAuthenticated,
+
+        // Auth
+        sendOTP,
+        verifyOTP,
         handleRegister,
         handleLogin,
+        logout,
+
+        // Meeting / History
         getHistoryOfUser,
         addToUserHistory,
         endMeeting,

@@ -9,13 +9,14 @@
     "@mui/icons-material": "^5.15.4",
     "@mui/material": "^5.15.4",
     "axios": "^1.6.5",
-    "http-status": "^1.7.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
     "socket.io-client": "^4.7.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@tailwindcss/vite": "^4.2.2",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
