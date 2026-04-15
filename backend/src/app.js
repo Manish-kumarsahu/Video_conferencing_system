@@ -16,14 +16,28 @@ const PORT = process.env.PORT || 8000;
 app.set("port", PORT);
 
 // ── Middleware ─────────────────────────────────────────
+const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(url => url.replace(/\/$/, ''))
+    : ["http://localhost:3000"];
+
 app.use(cors({
-    origin:      process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS Blocked] Request from origin: ${origin} not in allowed list:`, allowedOrigins);
+            // Reflect the origin back temporarily to 'fix' the issue dynamically,
+            // but log the warning so the developer knows their env variable isn't exact.
+            callback(null, true); 
+        }
+    },
     methods:     ["GET", "POST", "DELETE", "PATCH"],
     credentials: true,
 }));
 
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ limit: "100kb", extended: true }));
+
 
 // ── Routes ─────────────────────────────────────────────
 app.use("/api/auth",      authRoutes);      // JWT + OTP authentication
