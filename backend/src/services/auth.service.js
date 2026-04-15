@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { User } from "../models/user.model.js";
+import { OtpModel } from "../models/otp.model.js";
 import { generateToken } from "../utils/jwt.js";
 import { sendOTPEmail } from "../utils/email.js";
 
@@ -7,88 +8,118 @@ import { sendOTPEmail } from "../utils/email.js";
 export const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
 
 /** Generate a random 6-digit OTP string */
-export const generateOTP = () =>
+const generateOTP = () =>
     Math.floor(100000 + Math.random() * 900000).toString();
 
+/** OTP lifetime — 5 minutes */
+const OTP_TTL_MS = 5 * 60 * 1000;
+
 export const AuthService = {
+    // ── Step 1: /send-otp ─────────────────────────────
     async sendOTP(email) {
         const normalizedEmail = email.trim().toLowerCase();
-        const existing = await User.findOne({ email: normalizedEmail });
-        
-        if (existing && existing.isVerified) {
+
+        // Reject if a fully-registered account already exists
+        const existingUser = await User.findOne({ email: normalizedEmail });
+        if (existingUser) {
             throw new Error("ACCOUNT_EXISTS");
         }
 
-        const otp = generateOTP();
-        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+        const otp       = generateOTP();
+        const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
-        await User.findOneAndUpdate(
+        // $set is critical here — a plain object update acts as a REPLACEMENT
+        // and strips the `email` field from the document on subsequent upserts.
+        await OtpModel.findOneAndUpdate(
             { email: normalizedEmail },
-            { $set: { otp, otpExpiry, isVerified: false } },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
+            { $set: { otp, verified: false, expiresAt } },
+            { upsert: true, new: true }
         );
 
+        console.log(`[sendOTP] OTP saved to DB for ${normalizedEmail}`);
         await sendOTPEmail(normalizedEmail, otp);
         return normalizedEmail;
     },
 
+    // ── Step 2: /verify-otp ───────────────────────────
     async verifyOTP(email, otp) {
         const normalizedEmail = email.trim().toLowerCase();
-        const user = await User.findOne({ email: normalizedEmail });
 
-        if (!user) {
+        // Look up the existing OTP record — do NOT create one here
+        const entry = await OtpModel.findOne({ email: normalizedEmail });
+
+        if (!entry) {
             throw new Error("NOT_FOUND");
         }
-        if (!user.otp || !user.otpExpiry) {
-            throw new Error("NO_OTP");
-        }
-        if (new Date() > user.otpExpiry) {
+
+        // Eagerly check expiry — MongoDB TTL reaper can lag up to 60 s
+        if (new Date() > entry.expiresAt) {
+            await OtpModel.deleteOne({ email: normalizedEmail });
             throw new Error("EXPIRED_OTP");
         }
-        if (user.otp !== otp.trim()) {
+
+        const submittedOtp = String(otp).trim(); // guard against number type
+        console.log(`[verifyOTP] stored="${entry.otp}" submitted="${submittedOtp}" match=${entry.otp === submittedOtp}`);
+
+        if (entry.otp !== submittedOtp) {
             throw new Error("INVALID_OTP");
         }
 
-        user.isVerified = true;
-        user.otp = null;
-        user.otpExpiry = null;
-        await user.save();
-        
-        return user;
+        // Mark as verified in DB.
+        // The record is kept alive so /register can confirm verification
+        // even across server restarts (nodemon, crashes, etc.).
+        await OtpModel.updateOne(
+            { email: normalizedEmail },
+            { $set: { verified: true } }
+        );
+        console.log(`[verifyOTP] OTP verified for ${normalizedEmail}`);
+        return normalizedEmail;
     },
 
+    // ── Step 3: /register ─────────────────────────────
     async register(email, name, password) {
         const normalizedEmail = email.trim().toLowerCase();
-        const user = await User.findOne({ email: normalizedEmail });
 
-        if (!user) {
+        // Gate: find the OTP entry and confirm it was verified
+        const entry = await OtpModel.findOne({ email: normalizedEmail });
+
+        if (!entry) {
             throw new Error("NO_OTP_COMPLETED");
         }
-        if (!user.isVerified) {
+        if (!entry.verified) {
             throw new Error("NOT_VERIFIED");
         }
-        if (user.password) {
+
+        // Guard against race conditions / duplicate submissions
+        const existingUser = await User.findOne({ email: normalizedEmail });
+        if (existingUser) {
+            await OtpModel.deleteOne({ email: normalizedEmail });
             throw new Error("ACCOUNT_EXISTS");
         }
 
+        // Hash password and create the user — first write to users collection
         const hashedPassword = await bcrypt.hash(password, 12);
-        user.name = name.trim();
-        user.password = hashedPassword;
-        await user.save();
+        const user = await User.create({
+            email:    normalizedEmail,
+            name:     name.trim(),
+            password: hashedPassword,
+        });
+
+        // Registration complete — OTP entry is no longer needed
+        await OtpModel.deleteOne({ email: normalizedEmail });
+        console.log(`[register] User created and OTP deleted for ${normalizedEmail}`);
 
         const token = generateToken(user._id.toString());
         return { user, token };
     },
 
+    // ── Login ─────────────────────────────────────────
     async login(email, password) {
         const normalizedEmail = email.trim().toLowerCase();
         const user = await User.findOne({ email: normalizedEmail });
 
         if (!user || !user.password) {
             throw new Error("INVALID_CREDENTIALS");
-        }
-        if (!user.isVerified) {
-            throw new Error("NOT_VERIFIED");
         }
 
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
@@ -98,5 +129,5 @@ export const AuthService = {
 
         const token = generateToken(user._id.toString());
         return { user, token };
-    }
+    },
 };

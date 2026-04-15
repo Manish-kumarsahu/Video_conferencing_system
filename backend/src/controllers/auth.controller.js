@@ -50,10 +50,7 @@ export const verifyOTP = async (req, res) => {
 
     } catch (err) {
         if (err.message === "NOT_FOUND") {
-            return res.status(httpStatus.NOT_FOUND).json({ message: "No pending registration found for this email" });
-        }
-        if (err.message === "NO_OTP") {
-            return res.status(httpStatus.BAD_REQUEST).json({ message: "No OTP found. Please request a new one." });
+            return res.status(httpStatus.NOT_FOUND).json({ message: "No OTP request found for this email. Please request a new OTP." });
         }
         if (err.message === "EXPIRED_OTP") {
             return res.status(httpStatus.BAD_REQUEST).json({ message: "OTP has expired. Please request a new one." });
@@ -61,7 +58,7 @@ export const verifyOTP = async (req, res) => {
         if (err.message === "INVALID_OTP") {
             return res.status(httpStatus.BAD_REQUEST).json({ message: "Invalid OTP. Please try again." });
         }
-        
+
         console.error("[verifyOTP]", err);
         return res
             .status(httpStatus.INTERNAL_SERVER_ERROR)
@@ -152,10 +149,7 @@ export const login = async (req, res) => {
         if (err.message === "INVALID_CREDENTIALS") {
             return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid email or password" });
         }
-        if (err.message === "NOT_VERIFIED") {
-            return res.status(httpStatus.FORBIDDEN).json({ message: "Email not verified. Please complete OTP verification." });
-        }
-        
+
         console.error("[login]", err);
         return res
             .status(httpStatus.INTERNAL_SERVER_ERROR)
