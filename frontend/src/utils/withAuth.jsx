@@ -1,20 +1,24 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
-// Extracted outside component — pure function, no need to live inside render cycle
-const isAuthenticated = () => Boolean(localStorage.getItem("token"));
-
+/**
+ * Higher-Order Component that protects routes.
+ * Redirects to /auth if the user is not authenticated.
+ * Uses the AuthContext's isAuthenticated flag (JWT-based).
+ */
 const withAuth = (WrappedComponent) => {
     const AuthComponent = (props) => {
-        const router = useNavigate();
+        const navigate         = useNavigate();
+        const { isAuthenticated } = useAuth();
 
         useEffect(() => {
-            if (!isAuthenticated()) {
-                router("/auth");
+            if (!isAuthenticated) {
+                navigate("/auth");
             }
-        }, [router]);
+        }, [isAuthenticated, navigate]);
 
-        if (!isAuthenticated()) {
+        if (!isAuthenticated) {
             return null;
         }
 

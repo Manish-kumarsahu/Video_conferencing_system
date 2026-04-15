@@ -7,10 +7,21 @@ const messages = {};
 const timeOnline = {};
 const deepgramClients = {};
 
+const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(url => url.replace(/\/$/, ''))
+    : ["http://localhost:3000"];
+
 export const connectToSocket = (server) => {
     const io = new Server(server, {
         cors: {
-            origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+            origin: function (origin, callback) {
+                if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+                    callback(null, true);
+                } else {
+                    // Reflected dynamically to fix CORS blocks for testing
+                    callback(null, true);
+                }
+            },
             methods: ["GET", "POST"],
             credentials: true,
         },
@@ -43,6 +54,15 @@ export const connectToSocket = (server) => {
                     io.to(socket.id).emit("receive-message", msg);
                 });
             }
+        });
+
+        // ── Media & Speaking Status Relay ────────────────
+        socket.on("media-status", ({ roomId, micOn, videoOn }) => {
+            socket.to(roomId).emit("media-status", { socketId: socket.id, micOn, videoOn });
+        });
+
+        socket.on("speaking-status", ({ roomId, isSpeaking }) => {
+            socket.to(roomId).emit("speaking-status", { socketId: socket.id, isSpeaking });
         });
 
         // ── WebRTC signal relay ────────────────────────

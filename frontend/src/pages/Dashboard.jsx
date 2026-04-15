@@ -1,5 +1,6 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import withAuth from "../utils/withAuth";
+import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
 import {
@@ -28,8 +29,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [meetingCode, setMeetingCode] = useState("");
-  const { addToUserHistory } = useContext(AuthContext);
+  // History is saved in VideoMeet on meeting end (not on join)
 
   // schedule meeting modal
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -39,7 +41,7 @@ function Dashboard() {
 
   const [toast, setToast] = useState({ open: false, message: "" });
 
-  const handleJoinVideoCall = async (code = meetingCode) => {
+  const handleJoinVideoCall = (code = meetingCode) => {
     if (!code.trim()) {
       setToast({ open: true, message: "Please enter a valid meeting code" });
       return;
@@ -48,28 +50,15 @@ function Dashboard() {
       setToast({ open: true, message: "Room not found" });
       return;
     }
-    try {
-      await addToUserHistory(code);
-      navigate(`/${code}`);
-    } catch (error) {
-      setToast({ open: true, message: error?.response?.data?.message || "Room not found" });
-    }
+    navigate(`/${code}`);
   };
 
-  const handleNewMeeting = async () => {
-    try {
-      // Generate unique ID (UUID fallback)
-      const uuid = crypto.randomUUID
-        ? crypto.randomUUID()
-        : Math.random().toString(36).substring(2, 10);
-      await addToUserHistory(uuid);
-      navigate(`/${uuid}`);
-    } catch (error) {
-      setToast({ 
-        open: true, 
-        message: "Failed to create meeting room. Please check your connection."
-      });
-    }
+  const handleNewMeeting = () => {
+    // Generate unique ID (UUID fallback)
+    const uuid = crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 10);
+    navigate(`/${uuid}`);
   };
 
   const handleScheduleClose = () => {
@@ -147,10 +136,7 @@ function Dashboard() {
             variant="outlined"
             size="small"
             startIcon={<LogoutIcon />}
-            onClick={() => {
-              localStorage.removeItem("token");
-              navigate("/auth");
-            }}
+            onClick={logout}
             sx={{
               borderRadius: "8px",
               color: "#ff6b6b",

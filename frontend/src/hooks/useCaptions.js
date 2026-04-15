@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 export default function useCaptions(socket, username) {
     const [captionsOn, setCaptionsOn] = useState(false);
     const [captions, setCaptions] = useState([]);
+    const [transcript, setTranscript] = useState([]); // final-only captions for summarization
     const audioContextRef = useRef(null);
     const processorRef = useRef(null);
     const sourceRef = useRef(null);
@@ -14,46 +15,52 @@ export default function useCaptions(socket, username) {
         if (!socket) return;
 
         const handleTranscript = (data) => {
-            console.log("[useCaptions] Received transcript data:", data);
             // data: { speakerName, text, isFinal, socketId }
+            const dataWithTime = { ...data, timestamp: Date.now() };
+
             setCaptions(prev => {
                 const newCaptions = [...prev];
-                // Find if we have an ongoing interim caption for this speaker
                 const lastIdx = newCaptions.length - 1;
 
                 if (data.isFinal) {
-                    // It's final, add it as a new permanent caption line
-                    // or replace the interim one if it matches speaker
+                    setTranscript(p => [...p, data]);
+                    // If last line was an interim from the same person, replace it with final
                     if (newCaptions[lastIdx] && !newCaptions[lastIdx].isFinal && newCaptions[lastIdx].socketId === data.socketId) {
-                        newCaptions[lastIdx] = data;
+                        newCaptions[lastIdx] = dataWithTime;
                     } else {
-                        newCaptions.push(data);
+                        newCaptions.push(dataWithTime);
                     }
                 } else {
-                    // It's interim, update the last line if it's from the same speaker and also interim
+                    // Update current interim line for this speaker or add new one
                     if (newCaptions[lastIdx] && !newCaptions[lastIdx].isFinal && newCaptions[lastIdx].socketId === data.socketId) {
                         newCaptions[lastIdx].text = data.text;
-                    } else if (newCaptions[lastIdx] && !newCaptions[lastIdx].isFinal) {
-                        // Someone else is speaking interim, we leave the previous interim (it might get finalized later or just replaced),
-                        // actually just append new interim
-                        newCaptions.push(data);
+                        newCaptions[lastIdx].timestamp = Date.now(); // Refresh timestamp for ongoing speech
                     } else {
-                        // No interim line currently, append a new one
-                        newCaptions.push(data);
+                        newCaptions.push(dataWithTime);
                     }
                 }
 
-                // Keep only the last 15 captions for performance
                 return newCaptions.slice(-15);
             });
         };
 
         socket.on('transcript', handleTranscript);
-
-        return () => {
-            socket.off('transcript', handleTranscript);
-        };
+        return () => socket.off('transcript', handleTranscript);
     }, [socket]);
+
+    // Timer to clear old captions (disappear after 5 seconds of silence)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCaptions(prev => {
+                if (prev.length === 0) return prev;
+                const now = Date.now();
+                const filtered = prev.filter(c => now - c.timestamp < 5000);
+                if (filtered.length === prev.length) return prev;
+                return filtered;
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     const startCaptions = useCallback(async () => {
         console.log("[useCaptions] startCaptions called. localStream:", window.localStream);
@@ -96,7 +103,7 @@ export default function useCaptions(socket, username) {
             sourceRef.current.connect(processorRef.current);
             processorRef.current.connect(audioContextRef.current.destination);
 
-            const roomId = window.location.pathname;
+            const roomId = window.location.pathname.split('/').pop();
             console.log("[useCaptions] Emitting start-captions for room:", roomId);
             socket.emit('start-captions', roomId, username);
             setCaptionsOn(true);
@@ -134,6 +141,7 @@ export default function useCaptions(socket, username) {
     return {
         captionsOn,
         toggleCaptions,
-        captions
+        captions,
+        transcript,
     };
 }

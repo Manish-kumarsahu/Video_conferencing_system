@@ -12,8 +12,8 @@ export default function LandingPage() {
         </div>
         <div className="navlist">
           <p onClick={() => router("/aljk23")}>Join as Guest</p>
-          <p onClick={() => router("/auth")}>Register</p>
-          <div className="navLoginBtn" onClick={() => router("/auth")} role="button">
+          <p onClick={() => router("/auth", { state: { mode: "register" } })}>Register</p>
+          <div className="navLoginBtn" onClick={() => router("/auth", { state: { mode: "login" } })} role="button">
             Login
           </div>
         </div>
@@ -22,11 +22,11 @@ export default function LandingPage() {
       <div className="landingMainContainer">
         <div>
           <h1>
-            <span>Connect</span> with your<br />loved Ones
+            <span>Connect, Collaborate</span><br />and Communicate Smarter
           </h1>
-          <p>Bridge the distance with crystal-clear video calls powered by NexaMeet.</p>
+          <p>Experience real-time transcription and AI-generated summaries with NexaMeet.</p>
           <div role="button">
-            <Link to="/auth">Get Started →</Link>
+            <Link to="/auth" state={{ mode: "register" }}>Get Started →</Link>
           </div>
         </div>
         <div>

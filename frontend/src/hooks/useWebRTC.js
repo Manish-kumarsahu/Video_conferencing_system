@@ -1,12 +1,25 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import io from "socket.io-client";
-import server from '../environment';
+import { BASE_URL } from '../services/api';
 
-const peerConfigConnections = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" }
-    ],
-};
+const turnUrls = import.meta.env.VITE_TURN_URL;
+const turnUsername = import.meta.env.VITE_TURN_USERNAME;
+const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
+
+const blockStun = { urls: "stun:stun.l.google.com:19302" };
+
+const iceServers = [blockStun];
+
+// If TURN is configured, add it to the servers array
+if (turnUrls && turnUsername && turnCredential) {
+    iceServers.push({
+        urls: turnUrls.includes(',') ? turnUrls.split(',') : turnUrls,
+        username: turnUsername,
+        credential: turnCredential,
+    });
+}
+
+const peerConfigConnections = { iceServers };
 
 /**
  * Manages WebRTC peer connections and Socket.io signaling.
@@ -15,15 +28,25 @@ const peerConfigConnections = {
 export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVideo, onMeetingEnded) {
     const socketRef = useRef(null);
     const socketIdRef = useRef(null);
+    const [socketIdState, setSocketIdState] = useState(null);
     const connectionsRef = useRef({});
     const videoRef = useRef([]);
 
     const [videos, setVideos] = useState([]);
     const [messages, setMessages] = useState([]);
     const [newMessages, setNewMessages] = useState(0);
-    const [participants, setParticipants] = useState([]); // Array of { id, name, role }
+    const [participants, setParticipants] = useState([]);
 
-    // ── Cleanup socket on unmount ──────────────────────
+    // ── Speaker Detection & Media Status ──────────────
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [mediaStatus, setMediaStatus] = useState({});
+    const analyserRef = useRef(null);
+    const audioCtxRef = useRef(null);
+    const sourceRef = useRef(null);
+    const speakingFramesRef = useRef(0);
+    const silentFramesRef = useRef(0);
+    const prevStreamIdRef = useRef(null);
+
     useEffect(() => {
         return () => {
             if (socketRef.current) {
@@ -31,12 +54,115 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
                 socketRef.current = null;
             }
             for (const id in connectionsRef.current) {
-                try {
-                    connectionsRef.current[id].close();
-                } catch (_) { /* ignore */ }
+                try { connectionsRef.current[id].close(); } catch (_) {}
             }
             connectionsRef.current = {};
+            // Cleanup audio analyser
+            if (sourceRef.current) { try { sourceRef.current.disconnect(); } catch (_) {} }
+            if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+                try { audioCtxRef.current.close(); } catch (_) {}
+            }
         };
+    }, []);
+
+    // ── Audio Analyser Setup ──────────────────────────
+    const setupAnalyser = useCallback(() => {
+        const stream = window.localStream;
+        if (!stream) return;
+        const audioTrack = stream.getAudioTracks()[0];
+        if (!audioTrack) return;
+        if (prevStreamIdRef.current === stream.id) return;
+        prevStreamIdRef.current = stream.id;
+
+        if (sourceRef.current) { try { sourceRef.current.disconnect(); } catch (_) {} }
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+            audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        try {
+            sourceRef.current = audioCtxRef.current.createMediaStreamSource(stream);
+            analyserRef.current = audioCtxRef.current.createAnalyser();
+            analyserRef.current.fftSize = 256;
+            analyserRef.current.smoothingTimeConstant = 0.5;
+            sourceRef.current.connect(analyserRef.current);
+        } catch (e) { console.warn('[setupAnalyser]', e); }
+    }, []);
+
+    // ── Speaker Detection Polling ─────────────────────
+    useEffect(() => {
+        const THRESHOLD = 15, SPEAK_FRAMES = 2, SILENT_FRAMES = 8;
+        const id = setInterval(() => {
+            if (!analyserRef.current) { setupAnalyser(); }
+            if (!analyserRef.current) return;
+
+            const buf = new Uint8Array(analyserRef.current.frequencyBinCount);
+            analyserRef.current.getByteFrequencyData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += buf[i];
+            const avg = sum / buf.length;
+
+            if (avg > THRESHOLD) {
+                speakingFramesRef.current++;
+                silentFramesRef.current = 0;
+                if (speakingFramesRef.current >= SPEAK_FRAMES) {
+                    setIsSpeaking(prev => {
+                        if (!prev && socketRef.current) {
+                            const roomId = window.location.pathname.split('/').pop();
+                            socketRef.current.emit('speaking-status', { roomId, isSpeaking: true });
+                        }
+                        return true;
+                    });
+                }
+            } else {
+                silentFramesRef.current++;
+                speakingFramesRef.current = 0;
+                if (silentFramesRef.current >= SILENT_FRAMES) {
+                    setIsSpeaking(prev => {
+                        if (prev && socketRef.current) {
+                            const roomId = window.location.pathname.split('/').pop();
+                            socketRef.current.emit('speaking-status', { roomId, isSpeaking: false });
+                        }
+                        return false;
+                    });
+                }
+            }
+        }, 150);
+        return () => clearInterval(id);
+    }, [setupAnalyser]);
+
+    // Re-attach analyser when local stream changes
+    useEffect(() => {
+        const id = setInterval(() => {
+            const stream = window.localStream;
+            if (stream && stream.id !== prevStreamIdRef.current) setupAnalyser();
+        }, 1000);
+        return () => clearInterval(id);
+    }, [setupAnalyser]);
+
+    // Sync local isSpeaking into mediaStatus map
+    useEffect(() => {
+        if (socketIdRef.current) {
+            setMediaStatus(prev => ({
+                ...prev,
+                [socketIdRef.current]: { ...(prev[socketIdRef.current] || {}), isSpeaking }
+            }));
+        }
+    }, [isSpeaking]);
+
+    // ── Emit Media Status ─────────────────────────────
+    const emitMediaStatus = useCallback((micOn, videoOn) => {
+        if (socketRef.current) {
+            const roomId = window.location.pathname.split('/').pop();
+            socketRef.current.emit('media-status', { roomId, micOn, videoOn });
+        }
+        if (socketIdRef.current) {
+            setMediaStatus(prev => ({
+                ...prev,
+                [socketIdRef.current]: {
+                    ...(prev[socketIdRef.current] || {}),
+                    micOn, videoOn,
+                }
+            }));
+        }
     }, []);
 
     // ── Helpers ───────────────────────────────────────
@@ -114,7 +240,7 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
     }, []);
 
     const sendMessage = useCallback((messageText, username) => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         const msg = { sender: username, data: messageText, senderId: socketIdRef.current };
         socketRef.current?.emit('send-message', { roomId, message: msg });
         addMessage(msg);
@@ -124,22 +250,22 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
 
     // ── Host Controls ─────────────────────────────────
     const kickUser = useCallback((targetId) => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('kick-user', roomId, targetId);
     }, []);
 
     const muteAll = useCallback(() => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('mute-all', roomId);
     }, []);
 
     const stopVideoAll = useCallback(() => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('stop-video-all', roomId);
     }, []);
 
     const endMeetingAll = useCallback(() => {
-        const roomId = window.location.pathname;
+        const roomId = window.location.pathname.split('/').pop();
         socketRef.current?.emit('end-meeting-all', roomId);
     }, []);
 
@@ -148,14 +274,14 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
         if (socketRef.current?.connected) return;
 
         const connections = connectionsRef.current;
-        socketRef.current = io(server);
-
+        socketRef.current = io(BASE_URL);
         socketRef.current.on('signal', gotMessageFromServer);
 
         socketRef.current.on('connect', () => {
-            const roomId = window.location.pathname;
+            const roomId = window.location.pathname.split('/').pop();
             socketRef.current.emit('join-room', roomId, username);
             socketIdRef.current = socketRef.current.id;
+            setSocketIdState(socketRef.current.id);
 
             socketRef.current.on('receive-message', addMessage);
 
@@ -179,6 +305,22 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
             socketRef.current.on('user-left', (id) => {
                 setVideos(prev => prev.filter(v => v.socketId !== id));
                 setParticipants(prev => prev.filter(p => p.socketId !== id));
+                setMediaStatus(prev => { const n = { ...prev }; delete n[id]; return n; });
+            });
+
+            // ── Remote media & speaking status ──
+            socketRef.current.on('media-status', ({ socketId: remoteId, micOn, videoOn }) => {
+                setMediaStatus(prev => ({
+                    ...prev,
+                    [remoteId]: { ...(prev[remoteId] || {}), micOn, videoOn }
+                }));
+            });
+
+            socketRef.current.on('speaking-status', ({ socketId: remoteId, isSpeaking: remoteSpeaking }) => {
+                setMediaStatus(prev => ({
+                    ...prev,
+                    [remoteId]: { ...(prev[remoteId] || {}), isSpeaking: remoteSpeaking }
+                }));
             });
 
             socketRef.current.on('update-users', (clients) => {
@@ -269,7 +411,10 @@ export default function useWebRTC(createBlackSilence, onForceMute, onForceStopVi
         messages,
         newMessages,
         participants,
-        socketId: socketIdRef.current,
+        socketId: socketIdState,
+        isSpeaking,
+        mediaStatus,
+        emitMediaStatus,
         sendMessage,
         resetNewMessages,
         connectToSocket,
