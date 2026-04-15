@@ -1,6 +1,9 @@
 import "../App.css";
 import { Link, useNavigate } from "react-router-dom";
 
+const generateMeetingCode = () =>
+  Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 4);
+
 export default function LandingPage() {
   const router = useNavigate();
 
@@ -11,7 +14,7 @@ export default function LandingPage() {
           <h2>NexaMeet</h2>
         </div>
         <div className="navlist">
-          <p onClick={() => router("/aljk23")}>Join as Guest</p>
+          <p onClick={() => router(`/${generateMeetingCode()}`)}>Join as Guest</p>
           <p onClick={() => router("/auth", { state: { mode: "register" } })}>Register</p>
           <div className="navLoginBtn" onClick={() => router("/auth", { state: { mode: "login" } })} role="button">
             Login
