@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Container, Box, Paper, Typography, TextField, Button,
@@ -129,31 +130,47 @@ const getPasswordStrength = (pwd) => {
 
 /* ─── OTP Countdown hook ──────────────────────────────── */
 const OTP_TTL = 5 * 60; // 5 minutes in seconds
+const RESEND_COOLDOWN = 60; // seconds before "Resend Code" becomes clickable
 
 const useCountdown = (active) => {
   const [seconds, setSeconds] = useState(OTP_TTL);
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN);
   const intervalRef = useRef(null);
 
-  const reset = useCallback(() => setSeconds(OTP_TTL), []);
+  const reset = useCallback(() => {
+    setSeconds(OTP_TTL);
+    setResendCooldown(RESEND_COOLDOWN);
+  }, []);
 
   useEffect(() => {
     if (!active) return;
     setSeconds(OTP_TTL);
-    intervalRef.current = setInterval(
-      () => setSeconds((s) => (s > 0 ? s - 1 : 0)),
-      1000
-    );
+    setResendCooldown(RESEND_COOLDOWN);
+    intervalRef.current = setInterval(() => {
+      setSeconds((s) => (s > 0 ? s - 1 : 0));
+      setResendCooldown((r) => (r > 0 ? r - 1 : 0));
+    }, 1000);
     return () => clearInterval(intervalRef.current);
   }, [active]);
 
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
-  return { display: `${mm}:${ss}`, expired: seconds === 0, reset };
+  const canResend = resendCooldown === 0;
+  return { display: `${mm}:${ss}`, expired: seconds === 0, canResend, resendCooldown, reset };
 };
 
 
 export default function Authentication() {
+  const location = useLocation();
   const [mode, setMode] = useState(0); // 0 = login, 1 = signup
+
+  useEffect(() => {
+    if (location.state?.mode === "register") {
+      setMode(1);
+    } else if (location.state?.mode === "login") {
+      setMode(0);
+    }
+  }, [location.state]);
   const [step, setStep] = useState(0); // 0 = email, 1 = otp, 2 = details
 
   /* shared */
@@ -172,6 +189,7 @@ export default function Authentication() {
   const [regPwd, setRegPwd] = useState("");
   const [regPwdConfirm, setRegPwdConfirm] = useState("");
   const [showRegPwd, setShowRegPwd] = useState(false);
+  const [showRegPwdConfirm, setShowRegPwdConfirm] = useState(false);
 
   /* ui state */
   const [loading, setLoading] = useState(false);
@@ -267,12 +285,12 @@ export default function Authentication() {
   };
 
   const handleResendOTP = async () => {
-    if (!countdown.expired) return;
+    if (!countdown.canResend) return;
     setLoading(true); clearError(); setOtpDigits(["", "", "", "", "", ""]);
     try {
       await sendOTP(email.trim());
       countdown.reset();
-      showToast("New OTP sent!");
+      showToast("New OTP sent successfully!");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to resend OTP.");
     } finally {
@@ -290,7 +308,8 @@ export default function Authentication() {
       showToast("Email verified! Complete your profile.");
       setStep(2);
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid OTP. Please try again.");
+      // Show the exact server error so the user gets a meaningful message
+      setError(err.response?.data?.message || "Verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -510,10 +529,10 @@ export default function Authentication() {
                           variant="text"
                           size="small"
                           onClick={handleResendOTP}
-                          disabled={!countdown.expired || loading}
+                          disabled={!countdown.canResend || loading}
                           sx={{ textTransform: 'none' }}
                         >
-                          Resend Code
+                          {countdown.canResend ? "Resend Code" : `Resend in ${countdown.resendCooldown}s`}
                         </Button>
                       </Box>
 
@@ -586,11 +605,20 @@ export default function Authentication() {
                         label="Confirm Password"
                         variant="outlined"
                         margin="normal"
-                        type="password"
+                        type={showRegPwdConfirm ? 'text' : 'password'}
                         value={regPwdConfirm}
                         error={Boolean(regPwdConfirm && regPwd !== regPwdConfirm)}
                         helperText={regPwdConfirm && regPwd !== regPwdConfirm ? "Passwords do not match" : ""}
                         onChange={(e) => { setRegPwdConfirm(e.target.value); clearError(); }}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton onClick={() => setShowRegPwdConfirm(!showRegPwdConfirm)} edge="end" sx={{ color: 'text.secondary' }}>
+                                {showRegPwdConfirm ? <VisibilityOff /> : <Visibility />}
+                              </IconButton>
+                            </InputAdornment>
+                          )
+                        }}
                       />
 
                       <Button
