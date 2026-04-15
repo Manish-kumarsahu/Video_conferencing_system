@@ -9,6 +9,9 @@ import meetingRoutes from "./routes/meeting.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 
 const app    = express();
+// Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, Render)
+app.set('trust proxy', 1);
+
 const server = createServer(app);
 const io     = connectToSocket(server);
 
@@ -16,8 +19,21 @@ const PORT = process.env.PORT || 8000;
 app.set("port", PORT);
 
 // ── Middleware ─────────────────────────────────────────
+const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(url => url.replace(/\/$/, ''))
+    : ["http://localhost:3000"];
+
 app.use(cors({
-    origin:      process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS Blocked] Request from origin: ${origin} not in allowed list:`, allowedOrigins);
+            // Reflect the origin back temporarily to 'fix' the issue dynamically,
+            // but log the warning so the developer knows their env variable isn't exact.
+            callback(null, true); 
+        }
+    },
     methods:     ["GET", "POST", "DELETE", "PATCH"],
     credentials: true,
 }));

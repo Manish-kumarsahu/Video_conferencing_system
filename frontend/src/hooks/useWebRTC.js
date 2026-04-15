@@ -2,11 +2,24 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import io from "socket.io-client";
 import { BASE_URL } from '../services/api';
 
-const peerConfigConnections = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" }
-    ],
-};
+const turnUrls = import.meta.env.VITE_TURN_URL;
+const turnUsername = import.meta.env.VITE_TURN_USERNAME;
+const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
+
+const blockStun = { urls: "stun:stun.l.google.com:19302" };
+
+const iceServers = [blockStun];
+
+// If TURN is configured, add it to the servers array
+if (turnUrls && turnUsername && turnCredential) {
+    iceServers.push({
+        urls: turnUrls.includes(',') ? turnUrls.split(',') : turnUrls,
+        username: turnUsername,
+        credential: turnCredential,
+    });
+}
+
+const peerConfigConnections = { iceServers };
 
 /**
  * Manages WebRTC peer connections and Socket.io signaling.

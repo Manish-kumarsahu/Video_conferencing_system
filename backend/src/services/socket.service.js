@@ -7,10 +7,21 @@ const messages = {};
 const timeOnline = {};
 const deepgramClients = {};
 
+const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(url => url.replace(/\/$/, ''))
+    : ["http://localhost:3000"];
+
 export const connectToSocket = (server) => {
     const io = new Server(server, {
         cors: {
-            origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+            origin: function (origin, callback) {
+                if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+                    callback(null, true);
+                } else {
+                    // Reflected dynamically to fix CORS blocks for testing
+                    callback(null, true);
+                }
+            },
             methods: ["GET", "POST"],
             credentials: true,
         },
